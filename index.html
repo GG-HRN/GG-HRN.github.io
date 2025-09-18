@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Backend Developer — Portfolio</title>
+  <meta name="description" content="Junior Backend Developer — 3 years experience. Specialised in backend systems, multiple paradigms and many languages & databases. Open to opportunities." />
+  <style>
+    /* Minimal styling embedded so the page looks presentable while remaining a single HTML file */
+    :root {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      color: #121212;
+      background: #f6f7f9;
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    body { margin: 0; line-height: 1.45; }
+    header { display:flex; align-items:center; gap:16px; padding:20px 0; }
+    .avatar {
+      width:96px; height:96px; border-radius:12px;
+      background:linear-gradient(135deg,#e6eefb,#dfe8f2);
+      display:flex; align-items:center; justify-content:center;
+      font-weight:700; color:#1f2937; font-size:28px;
+      box-shadow:0 6px 18px rgba(18,24,35,0.06);
+    }
+    h1 { margin:0; font-size:24px; }
+    h2 { margin: 18px 0 8px; font-size:18px; }
+    p.lead { margin:6px 0 0; color:#374151; }
+    section.card {
+      background:white; border-radius:12px; padding:18px; margin-top:18px;
+      box-shadow:0 6px 18px rgba(18,24,35,0.04);
+    }
+    ul { margin:8px 0 0 18px; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .chip {
+      background:#eef2ff; color:#1e40af; padding:6px 10px; border-radius:999px;
+      font-size:13px;
+    }
+    .cta {
+      display:inline-block; margin-top:14px; padding:10px 16px; border-radius:8px;
+      background:#111827; color:white; text-decoration:none; font-weight:600;
+    }
+    footer { margin-top:22px; color:#6b7280; font-size:13px; text-align:center; }
+    pre { background:#0f172a; color:#e6eef8; padding:12px; border-radius:8px; overflow:auto; font-size:13px; }
+    @media (max-width:520px){
+      header{flex-direction:row; gap:12px}
+      :root{padding:16px}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="avatar" aria-hidden="true">BD</div>
+    <div>
+      <h1>Backend Developer — Junior (3 years experience)</h1>
+      <p class="lead">Focused on backend systems, scalable APIs, and pragmatic, maintainable code. Fluent across multiple paradigms: structured, OOP, and functional.</p>
+    </div>
+  </header>
+
+  <section class="card" id="about">
+    <h2>About me</h2>
+    <p>
+      Hi! I’m a junior backend developer with about <strong>3 years of experience</strong>. I’ve worked across different programming paradigms (structured, object-oriented, and functional)
+      and across a wide range of technologies. I enjoy solving backend problems, building APIs, and working on system design that prioritizes reliability and clarity.
+    </p>
+    <a class="cta" href="#contact">Contact me (DM)</a>
+  </section>
+
+  <section class="card" id="skills">
+    <h2>Core technical skills</h2>
+
+    <h3 style="margin:10px 0 6px;font-size:15px;">Languages & Frameworks</h3>
+    <div class="chips" aria-hidden="false">
+      <span class="chip">C</span>
+      <span class="chip">C# (.NET)</span>
+      <span class="chip">Java (Spring Boot, Thymeleaf)</span>
+      <span class="chip">Clojure</span>
+      <span class="chip">JavaScript / TypeScript</span>
+      <span class="chip">PHP (Laravel)</span>
+      <span class="chip">VB / VBA</span>
+      <span class="chip">MERN stack</span>
+    </div>
+
+    <h3 style="margin:12px 0 6px;font-size:15px;">Databases</h3>
+    <div class="chips">
+      <span class="chip">MSSQL</span>
+      <span class="chip">MySQL</span>
+      <span class="chip">PostgreSQL</span>
+      <span class="chip">MongoDB</span>
+    </div>
+
+    <h3 style="margin:12px 0 6px;font-size:15px;">Programming paradigms</h3>
+    <ul>
+      <li><strong>Structured programming</strong> — clear control flow and procedural decomposition</li>
+      <li><strong>Object-oriented programming</strong> — abstraction, encapsulation, and design patterns</li>
+      <li><strong>Functional programming</strong> — immutability, pure functions, composition (major strength)</li>
+    </ul>
+  </section>
+
+  <section class="card" id="services">
+    <h2>What I can help with</h2>
+    <ul>
+      <li>Design and implement backend systems and microservices</li>
+      <li>API development (REST, GraphQL) and integration</li>
+      <li>Database schema design, queries, and performance tuning (SQL & NoSQL)</li>
+      <li>Migrate or modernize legacy code (.NET, Java, PHP)</li>
+      <li>Write clean, maintainable code with tests and documentation</li>
+    </ul>
+    <p style="margin-top:10px">Stacks and compensation are negotiable — I'm open to discussing your needs and constraints.</p>
+  </section>
+
+  <section class="card" id="contact">
+    <h2>Contact</h2>
+    <p>
+      Interested in working together? I’m open to new opportunities. The fastest way to reach me is via a direct message (DM) on Fiverr — please mention the project scope, preferred tech stack, and timeline.
+    </p>
+    <p><strong>Example short message you can send me:</strong></p>
+    <pre>Hi — I need a backend developer for [project type]. Tech: [preferred stack]. Timeline: [weeks/months]. Budget: [your budget].</pre>
+    <p style="margin-top:8px">I’ll reply with availability, an approach outline, and an estimated timeframe & quote.</p>
+  </section>
+
+  <footer>
+    <p>© <span id="year"></span> Backend Developer • Open to new opportunities • Languages: English / Spanish</p>
+  </footer>
+
+  <script>
+    // small script inside the single HTML file — keeps the file self-contained
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html><!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Backend Developer — Portfolio</title>
+  <meta name="description" content="Junior Backend Developer — 3 years experience. Specialised in backend systems, multiple paradigms and many languages & databases. Open to opportunities." />
+  <style>
+    /* Minimal styling embedded so the page looks presentable while remaining a single HTML file */
+    :root {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      color: #121212;
+      background: #f6f7f9;
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    body { margin: 0; line-height: 1.45; }
+    header { display:flex; align-items:center; gap:16px; padding:20px 0; }
+    .avatar {
+      width:96px; height:96px; border-radius:12px;
+      background:linear-gradient(135deg,#e6eefb,#dfe8f2);
+      display:flex; align-items:center; justify-content:center;
+      font-weight:700; color:#1f2937; font-size:28px;
+      box-shadow:0 6px 18px rgba(18,24,35,0.06);
+    }
+    h1 { margin:0; font-size:24px; }
+    h2 { margin: 18px 0 8px; font-size:18px; }
+    p.lead { margin:6px 0 0; color:#374151; }
+    section.card {
+      background:white; border-radius:12px; padding:18px; margin-top:18px;
+      box-shadow:0 6px 18px rgba(18,24,35,0.04);
+    }
+    ul { margin:8px 0 0 18px; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .chip {
+      background:#eef2ff; color:#1e40af; padding:6px 10px; border-radius:999px;
+      font-size:13px;
+    }
+    .cta {
+      display:inline-block; margin-top:14px; padding:10px 16px; border-radius:8px;
+      background:#111827; color:white; text-decoration:none; font-weight:600;
+    }
+    footer { margin-top:22px; color:#6b7280; font-size:13px; text-align:center; }
+    pre { background:#0f172a; color:#e6eef8; padding:12px; border-radius:8px; overflow:auto; font-size:13px; }
+    @media (max-width:520px){
+      header{flex-direction:row; gap:12px}
+      :root{padding:16px}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="avatar" aria-hidden="true">BD</div>
+    <div>
+      <h1>Backend Developer — Junior (3 years experience)</h1>
+      <p class="lead">Focused on backend systems, scalable APIs, and pragmatic, maintainable code. Fluent across multiple paradigms: structured, OOP, and functional.</p>
+    </div>
+  </header>
+
+  <section class="card" id="about">
+    <h2>About me</h2>
+    <p>
+      Hi! I’m a junior backend developer with about <strong>3 years of experience</strong>. I’ve worked across different programming paradigms (structured, object-oriented, and functional)
+      and across a wide range of technologies. I enjoy solving backend problems, building APIs, and working on system design that prioritizes reliability and clarity.
+    </p>
+    <a class="cta" href="#contact">Contact me (DM)</a>
+  </section>
+
+  <section class="card" id="skills">
+    <h2>Core technical skills</h2>
+
+    <h3 style="margin:10px 0 6px;font-size:15px;">Languages & Frameworks</h3>
+    <div class="chips" aria-hidden="false">
+      <span class="chip">C</span>
+      <span class="chip">C# (.NET)</span>
+      <span class="chip">Java (Spring Boot, Thymeleaf)</span>
+      <span class="chip">Clojure</span>
+      <span class="chip">JavaScript / TypeScript</span>
+      <span class="chip">PHP (Laravel)</span>
+      <span class="chip">VB / VBA</span>
+      <span class="chip">MERN stack</span>
+    </div>
+
+    <h3 style="margin:12px 0 6px;font-size:15px;">Databases</h3>
+    <div class="chips">
+      <span class="chip">MSSQL</span>
+      <span class="chip">MySQL</span>
+      <span class="chip">PostgreSQL</span>
+      <span class="chip">MongoDB</span>
+    </div>
+
+    <h3 style="margin:12px 0 6px;font-size:15px;">Programming paradigms</h3>
+    <ul>
+      <li><strong>Structured programming</strong> — clear control flow and procedural decomposition</li>
+      <li><strong>Object-oriented programming</strong> — abstraction, encapsulation, and design patterns</li>
+      <li><strong>Functional programming</strong> — immutability, pure functions, composition (major strength)</li>
+    </ul>
+  </section>
+
+  <section class="card" id="services">
+    <h2>What I can help with</h2>
+    <ul>
+      <li>Design and implement backend systems and microservices</li>
+      <li>API development (REST, GraphQL) and integration</li>
+      <li>Database schema design, queries, and performance tuning (SQL & NoSQL)</li>
+      <li>Migrate or modernize legacy code (.NET, Java, PHP)</li>
+      <li>Write clean, maintainable code with tests and documentation</li>
+    </ul>
+    <p style="margin-top:10px">Stacks and compensation are negotiable — I'm open to discussing your needs and constraints.</p>
+  </section>
+
+  <section class="card" id="contact">
+    <h2>Contact</h2>
+    <p>
+      Interested in working together? I’m open to new opportunities. The fastest way to reach me is via a direct message (DM) on Fiverr — please mention the project scope, preferred tech stack, and timeline.
+    </p>
+    <p><strong>Example short message you can send me:</strong></p>
+    <pre>Hi — I need a backend developer for [project type]. Tech: [preferred stack]. Timeline: [weeks/months]. Budget: [your budget].</pre>
+    <p style="margin-top:8px">I’ll reply with availability, an approach outline, and an estimated timeframe & quote.</p>
+  </section>
+
+  <footer>
+    <p>© <span id="year"></span> Backend Developer • Open to new opportunities • Languages: English / Spanish</p>
+  </footer>
+
+  <script>
+    // small script inside the single HTML file — keeps the file self-contained
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
