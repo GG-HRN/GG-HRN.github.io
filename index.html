@@ -1,228 +1,261 @@
-<!DOCTYPE html>
-<html lang="es">
+<!doctype html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Workout Planner PWA</title>
-<style>
-  body { margin:0; font-family:system-ui,sans-serif; background:#0f1724; color:#f1f5f9; display:flex; justify-content:center; padding:20px; }
-  .app { width:100%; max-width:900px; background:#1e293b; padding:20px; border-radius:12px; }
-  h1 { text-align:center; margin-bottom:15px; }
-  .input-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px; position:relative; }
-  input, select, button { padding:8px; border-radius:8px; border:none; font-size:14px; }
-  button { cursor:pointer; font-weight:600; }
-  button.add-btn { background:#6366f1; color:#fff; }
-  button.export-btn { background:#14b8a6; color:#fff; }
-  button.import-btn { background:#f59e0b; color:#fff; }
-  .week { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:12px; }
-  .day { background:#334155; padding:12px; border-radius:8px; }
-  .day h3 { margin:0 0 8px; font-size:16px; border-bottom:1px solid #475569; padding-bottom:4px; }
-  .exercise { background:#475569; margin-bottom:6px; padding:6px; border-radius:6px; font-size:14px; }
-  .exercise span { display:block; }
-  .actions button { background:transparent; color:#f1f5f9; font-size:12px; margin-top:4px; margin-right:4px; cursor:pointer; }
-  /* Autocomplete */
-  .autocomplete-list { position:absolute; top:40px; left:0; right:0; background:#475569; border-radius:8px; max-height:150px; overflow:auto; z-index:10; }
-  .autocomplete-item { padding:6px; cursor:pointer; }
-  .autocomplete-item:hover { background:#6366f1; }
-</style>
-<link rel="manifest" href="manifest.json">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Backend Developer — Portfolio</title>
+  <style>
+    :root {
+      --bg: #f3f4f6;
+      --primary: #1e3a8a;
+      --accent: #3b82f6;
+      --light: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --radius: 12px;
+      --shadow: 0 6px 18px rgba(0,0,0,0.08);
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      font-family: "Inter", system-ui, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    nav {
+      position: fixed;
+      top: 0; left: -250px;
+      width: 220px; height: 100%;
+      background: linear-gradient(180deg, var(--primary), #2563eb);
+      color: var(--light);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      transition: left 0.3s ease;
+      z-index: 1000;
+    }
+    nav.active { left: 0; }
+    nav h2 { font-size: 22px; margin-bottom: 14px; font-weight:600; }
+    nav a {
+      color: var(--light);
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      transition: background 0.2s;
+      font-size: 15px;
+    }
+    nav a:hover { background: rgba(255,255,255,0.15); }
+
+    /* Overlay */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      z-index: 900;
+    }
+    .overlay.active { display: block; }
+
+    /* Hamburger */
+    .hamburger {
+      position: fixed;
+      top: 16px; left: 16px;
+      width: 32px; height: 24px;
+      display: flex; flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      z-index: 1100;
+    }
+    .hamburger span {
+      height: 4px; background: var(--primary);
+      border-radius: 2px;
+      transition: all 0.3s;
+    }
+
+    /* Main */
+    main {
+      padding: 24px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    section {
+      background: var(--light);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow);
+      transition: transform 0.2s;
+    }
+    section:hover { transform: translateY(-2px); }
+    h1, h2, h3 { margin-bottom: 12px; }
+    p { margin-bottom: 12px; line-height: 1.6; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .chip {
+      background: #dbeafe;
+      color: #1e40af;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+    }
+
+    /* Projects */
+    .projects {
+      display: grid;
+      grid-template-columns: repeat(auto-fit,minmax(260px,1fr));
+      gap: 20px;
+    }
+    .card {
+      background: var(--light);
+      border: 1px solid #e5e7eb;
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+    }
+    .card h3 { margin-bottom: 6px; font-size: 18px; }
+    .card p { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+    .card a {
+      display: inline-block;
+      background: var(--accent);
+      color: var(--light);
+      text-decoration: none;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    .card a:hover { background: #1d4ed8; }
+
+    /* CTA */
+    .cta {
+      display: inline-block;
+      background: var(--accent);
+      color: var(--light);
+      padding: 10px 18px;
+      border-radius: var(--radius);
+      text-decoration: none;
+      margin-top: 10px;
+      transition: background 0.2s;
+    }
+    .cta:hover { background: #1d4ed8; }
+
+    /* Responsive */
+    @media(min-width: 768px) {
+      .hamburger { display: none; }
+      .overlay { display: none !important; }
+      nav { left: 0; }
+      main { margin-left: 240px; }
+    }
+  </style>
 </head>
 <body>
-<div class="app">
-  <h1>💪 Workout Planner</h1>
-  
-  <div class="input-row">
-    <select id="daySelect"></select>
-    <div style="flex:1; position:relative;">
-      <input type="text" id="exerciseInput" placeholder="Ejercicio" oninput="showSuggestions()">
-      <div id="autocomplete" class="autocomplete-list"></div>
-    </div>
-    <input type="number" id="sets" placeholder="Sets" style="width:60px">
-    <input type="number" id="reps" placeholder="Reps" style="width:60px">
-    <input type="number" id="weight" placeholder="Kg" style="width:60px">
-    <button class="add-btn" onclick="addExercise()">Agregar</button>
+  <!-- Sidebar -->
+  <div class="hamburger" id="toggleBtn">
+    <span></span><span></span><span></span>
   </div>
+  <div class="overlay" id="overlay"></div>
+  <nav id="sidebar">
+    <h2>Portfolio</h2>
+    <a href="#about" class="nav-link">About</a>
+    <a href="#skills" class="nav-link">Skills</a>
+    <a href="#projects" class="nav-link">Projects</a>
+    <a href="#services" class="nav-link">Services</a>
+    <a href="#contact" class="nav-link">Contact</a>
+  </nav>
 
-  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-    <button class="export-btn" onclick="exportJSON()">Exportar JSON</button>
-    <button class="import-btn" onclick="document.getElementById('fileInput').click()">Importar JSON</button>
-    <input type="file" id="fileInput" accept="application/json" style="display:none" onchange="importJSON(event)">
-  </div>
+  <!-- Main -->
+  <main>
+    <section id="about">
+      <h1>Hi 👋 I'm a Backend Developer</h1>
+      <p>I’m a junior developer with about <strong>3 years of experience</strong>. 
+      I’ve worked across different paradigms (structured, OOP, functional) 
+      and with a wide range of technologies.</p>
+      <a class="cta" href="#contact">Contact Me</a>
+    </section>
 
-  <div class="week" id="week"></div>
-</div>
+    <section id="skills">
+      <h2>Skills</h2>
+      <h3>Languages & Frameworks</h3>
+      <div class="chips">
+        <span class="chip">C</span>
+        <span class="chip">C# (.NET)</span>
+        <span class="chip">Java (Spring Boot, Thymeleaf)</span>
+        <span class="chip">Clojure</span>
+        <span class="chip">JavaScript / TypeScript</span>
+        <span class="chip">PHP (Laravel)</span>
+        <span class="chip">VB / VBA</span>
+        <span class="chip">MERN Stack</span>
+      </div>
+      <h3>Databases</h3>
+      <div class="chips">
+        <span class="chip">MSSQL</span>
+        <span class="chip">MySQL</span>
+        <span class="chip">PostgreSQL</span>
+        <span class="chip">MongoDB</span>
+      </div>
+    </section>
 
-<script>
-/* === IndexedDB === */
-let db;
-const request = indexedDB.open("WorkoutPlannerDB", 1);
-request.onupgradeneeded = e => {
-  db = e.target.result;
-  db.createObjectStore("routine", {keyPath:"day"});
-  db.createObjectStore("exercises", {keyPath:"name"});
-};
-request.onsuccess = e => { db = e.target.result; init(); };
-
-const daysOfWeek = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-let routine = {};
-let allExercises = [];
-
-/* === IndexedDB helpers === */
-function getStore(name, mode="readonly"){
-  return db.transaction(name, mode).objectStore(name);
-}
-
-function saveRoutine(){
-  const tx = db.transaction("routine","readwrite");
-  const store = tx.objectStore("routine");
-  daysOfWeek.forEach(day => store.put({day,exercises:routine[day]}));
-}
-
-function loadRoutine(){
-  return new Promise(resolve=>{
-    const tx = db.transaction("routine","readonly");
-    const store = tx.objectStore("routine");
-    const req = store.getAll();
-    req.onsuccess = () => {
-      if(req.result.length===0) daysOfWeek.forEach(d=>routine[d]=[]);
-      else req.result.forEach(r=> routine[r.day]=r.exercises);
-      resolve();
-    };
-  });
-}
-
-function loadExercises(){
-  return new Promise(resolve=>{
-    const tx = db.transaction("exercises","readonly");
-    const store = tx.objectStore("exercises");
-    const req = store.getAll();
-    req.onsuccess = ()=> { allExercises = req.result.map(e=>e.name); resolve(); };
-  });
-}
-
-function addExerciseToDB(name){
-  if(!allExercises.includes(name)){
-    allExercises.push(name);
-    const tx = db.transaction("exercises","readwrite");
-    tx.objectStore("exercises").put({name});
-  }
-}
-
-/* === UI === */
-function init(){
-  const daySelect = document.getElementById("daySelect");
-  daysOfWeek.forEach(d=> daySelect.innerHTML += `<option value="${d}">${d}</option>`);
-  Promise.all([loadRoutine(), loadExercises()]).then(renderWeek);
-}
-
-/* Autocomplete */
-function showSuggestions(){
-  const query = document.getElementById("exerciseInput").value.toLowerCase();
-  const box = document.getElementById("autocomplete");
-  box.innerHTML="";
-  if(!query) return;
-  const matches = allExercises.filter(e=>e.toLowerCase().includes(query));
-  matches.forEach(m=>{
-    const div = document.createElement("div");
-    div.className="autocomplete-item";
-    div.textContent=m;
-    div.onclick=()=>{ document.getElementById("exerciseInput").value=m; box.innerHTML=""; };
-    box.appendChild(div);
-  });
-}
-
-/* Agregar ejercicio */
-function addExercise(){
-  const day = document.getElementById("daySelect").value;
-  const name = document.getElementById("exerciseInput").value.trim();
-  const sets = parseInt(document.getElementById("sets").value) || 0;
-  const reps = parseInt(document.getElementById("reps").value) || 0;
-  const weight = parseFloat(document.getElementById("weight").value) || 0;
-  if(!name || sets<=0 || reps<=0) return alert("Completa nombre, sets y reps");
-  routine[day].push({name, sets, reps, weight});
-  addExerciseToDB(name);
-  saveRoutine();
-  renderWeek();
-  document.getElementById("exerciseInput").value="";
-  document.getElementById("sets").value="";
-  document.getElementById("reps").value="";
-  document.getElementById("weight").value="";
-  document.getElementById("autocomplete").innerHTML="";
-}
-
-/* Editar */
-function editExercise(day,i){
-  const ex = routine[day][i];
-  const newName = prompt("Ejercicio:", ex.name); if(!newName) return;
-  const newSets = parseInt(prompt("Sets:", ex.sets)); if(!newSets) return;
-  const newReps = parseInt(prompt("Reps:", ex.reps)); if(!newReps) return;
-  const newWeight = parseFloat(prompt("Peso:", ex.weight)) || 0;
-  routine[day][i] = {name:newName, sets:newSets, reps:newReps, weight:newWeight};
-  addExerciseToDB(newName);
-  saveRoutine();
-  renderWeek();
-}
-
-/* Borrar */
-function deleteExercise(day,i){
-  routine[day].splice(i,1);
-  saveRoutine();
-  renderWeek();
-}
-
-/* Render */
-function renderWeek(){
-  const weekDiv = document.getElementById("week");
-  weekDiv.innerHTML="";
-  daysOfWeek.forEach(day=>{
-    const dayDiv = document.createElement("div");
-    dayDiv.className="day";
-    dayDiv.innerHTML=`<h3>${day}</h3>`;
-    routine[day].forEach((ex,i)=>{
-      const exDiv = document.createElement("div");
-      exDiv.className="exercise";
-      exDiv.innerHTML=`
-        <span><b>${ex.name}</b></span>
-        <span>${ex.sets} x ${ex.reps} @ ${ex.weight}kg</span>
-        <div class="actions">
-          <button onclick="editExercise('${day}',${i})">✏️</button>
-          <button onclick="deleteExercise('${day}',${i})">🗑️</button>
+    <section id="projects">
+      <h2>Frontend Projects</h2>
+      <div class="projects">
+        <div class="card">
+          <h3>To-Do App</h3>
+          <p>A simple and responsive to-do list built with HTML, CSS, and JS.</p>
+          <a href="https://gg-hrn.github.io/todo.html" target="_blank">View Project</a>
         </div>
-      `;
-      dayDiv.appendChild(exDiv);
+        <div class="card">
+          <h3>Weekly Workout Planner</h3>
+          <p>Plan and track weekly workouts with HTML, CSS, and JS.</p>
+          <a href="https://gg-hrn.github.io/weekly-workout-planner.html" target="_blank">View Project</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="services">
+      <h2>Services</h2>
+      <ul>
+        <li>Backend system design & optimization</li>
+        <li>API development (REST, GraphQL)</li>
+        <li>Database design & tuning</li>
+        <li>Legacy code modernization</li>
+      </ul>
+    </section>
+
+    <section id="contact">
+      <h2>Contact</h2>
+      <p>I’m open to new opportunities. Reach me via DM 🚀</p>
+    </section>
+  </main>
+
+  <script>
+    const toggleBtn = document.getElementById('toggleBtn');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    const closeSidebar = () => {
+      sidebar.classList.remove('active');
+      overlay.classList.remove('active');
+    };
+
+    toggleBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('active');
+      overlay.classList.toggle('active');
     });
-    weekDiv.appendChild(dayDiv);
-  });
-}
 
-/* Exportar/Importar JSON */
-function exportJSON(){
-  const data = JSON.stringify(routine,null,2);
-  const blob = new Blob([data], {type:"application/json"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href=url; a.download="routine.json"; a.click();
-  URL.revokeObjectURL(url);
-}
-function importJSON(event){
-  const file = event.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e=>{
-    try{
-      const data = JSON.parse(e.target.result);
-      routine = data;
-      saveRoutine();
-      renderWeek();
-    }catch(err){ alert("Archivo inválido"); }
-  };
-  reader.readAsText(file);
-}
+    overlay.addEventListener('click', closeSidebar);
 
-/* === PWA Service Worker === */
-if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js");
-}
-</script>
+    navLinks.forEach(link => {
+      link.addEventListener('click', closeSidebar);
+    });
+  </script>
 </body>
 </html>
