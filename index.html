@@ -6,22 +6,21 @@
   <title>Backend Developer — Portfolio</title>
   <style>
     :root {
-      --bg: #f5f7fa;
+      --bg: #f9fafb;
       --primary: #1f2937;
       --accent: #2563eb;
       --light: #ffffff;
-      --text: #374151;
+      --text: #111827;
       --muted: #6b7280;
-      --radius: 10px;
-      --shadow: 0 6px 16px rgba(0,0,0,0.08);
+      --radius: 12px;
+      --shadow: 0 8px 20px rgba(0,0,0,0.08);
     }
     * {box-sizing:border-box;margin:0;padding:0}
     body {
-      font-family: system-ui, sans-serif;
+      font-family: "Inter", system-ui, sans-serif;
       color: var(--text);
       background: var(--bg);
       min-height: 100vh;
-      display: flex;
     }
 
     /* Sidebar */
@@ -39,22 +38,33 @@
       z-index: 1000;
     }
     nav.active { left: 0; }
-    nav h2 { font-size: 20px; margin-bottom: 10px; }
+    nav h2 { font-size: 20px; margin-bottom: 14px; font-weight:600; }
     nav a {
       color: var(--light);
       text-decoration: none;
-      padding: 8px 12px;
+      padding: 10px 14px;
       border-radius: var(--radius);
       transition: background 0.2s;
       display: block;
+      font-size: 15px;
     }
     nav a:hover { background: rgba(255,255,255,0.1); }
+
+    /* Overlay for mobile */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      z-index: 900;
+    }
+    .overlay.active { display: block; }
 
     /* Hamburger */
     .hamburger {
       position: fixed;
-      top: 15px; left: 15px;
-      width: 30px; height: 22px;
+      top: 16px; left: 16px;
+      width: 32px; height: 24px;
       display: flex; flex-direction: column;
       justify-content: space-between;
       cursor: pointer;
@@ -63,31 +73,26 @@
     .hamburger span {
       height: 4px; background: var(--primary);
       border-radius: 2px;
+      transition: all 0.3s;
     }
 
     /* Main content */
     main {
-      flex: 1;
-      padding: 30px;
-      margin-left: 0;
-      transition: margin-left 0.3s ease;
-      width: 100%;
+      padding: 24px;
+      max-width: 900px;
+      margin: 0 auto;
     }
-    nav.active ~ main {
-      margin-left: 220px;
-    }
-
     section {
       background: var(--light);
       border-radius: var(--radius);
       padding: 24px;
-      margin-bottom: 30px;
+      margin-bottom: 28px;
       box-shadow: var(--shadow);
     }
     h1, h2, h3 { margin-bottom: 12px; }
     p { margin-bottom: 12px; line-height: 1.6; }
 
-    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
     .chip {
       background: #e0e7ff;
       color: #1e3a8a;
@@ -96,10 +101,10 @@
       font-size: 13px;
     }
 
-    /* Project cards */
+    /* Projects */
     .projects {
       display: grid;
-      grid-template-columns: repeat(auto-fit,minmax(240px,1fr));
+      grid-template-columns: repeat(auto-fit,minmax(260px,1fr));
       gap: 16px;
     }
     .card {
@@ -109,12 +114,23 @@
       padding: 16px;
       box-shadow: var(--shadow);
       transition: transform 0.2s;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
     .card:hover { transform: translateY(-4px); }
     .card h3 { margin-bottom: 6px; font-size: 16px; }
-    .card p { font-size: 14px; color: var(--muted); }
-
-    /* CTA */
+    .card p { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+    .card a {
+      display: inline-block;
+      background: var(--accent);
+      color: var(--light);
+      text-decoration: none;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      text-align: center;
+    }
     .cta {
       display: inline-block;
       background: var(--accent);
@@ -128,6 +144,7 @@
     /* Responsive */
     @media(min-width: 768px) {
       .hamburger { display: none; }
+      .overlay { display: none !important; }
       nav { left: 0; }
       main { margin-left: 220px; }
     }
@@ -138,6 +155,7 @@
   <div class="hamburger" id="toggleBtn">
     <span></span><span></span><span></span>
   </div>
+  <div class="overlay" id="overlay"></div>
   <nav id="sidebar">
     <h2>Portfolio</h2>
     <a href="#about">About</a>
@@ -180,27 +198,17 @@
     </section>
 
     <section id="projects">
-      <h2>Projects</h2>
-      <h3>Backend</h3>
+      <h2>Frontend Projects</h2>
       <div class="projects">
         <div class="card">
-          <h3>API Service</h3>
-          <p>RESTful API built with Spring Boot and PostgreSQL.</p>
+          <h3>To-Do App</h3>
+          <p>A simple and responsive to-do list built with HTML, CSS, and JS.</p>
+          <a href="https://gg-hrn.github.io/todo.html" target="_blank">View Project</a>
         </div>
         <div class="card">
-          <h3>Data Pipeline</h3>
-          <p>ETL pipeline with Clojure and MongoDB.</p>
-        </div>
-      </div>
-      <h3 style="margin-top:20px;">Frontend</h3>
-      <div class="projects">
-        <div class="card">
-          <h3>React Dashboard</h3>
-          <p>Interactive dashboard with MERN stack.</p>
-        </div>
-        <div class="card">
-          <h3>Landing Page</h3>
-          <p>Responsive portfolio site with HTML, CSS, JS.</p>
+          <h3>Weekly Workout Planner</h3>
+          <p>Plan and track weekly workouts using a clean interface with HTML, CSS, and JS.</p>
+          <a href="https://gg-hrn.github.io/weekly-workout-planner.html" target="_blank">View Project</a>
         </div>
       </div>
     </section>
@@ -224,8 +232,14 @@
   <script>
     const toggleBtn = document.getElementById('toggleBtn');
     const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
     toggleBtn.addEventListener('click', () => {
       sidebar.classList.toggle('active');
+      overlay.classList.toggle('active');
+    });
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('active');
+      overlay.classList.remove('active');
     });
   </script>
 </body>
