@@ -1,228 +1,169 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Weekly Workout Planner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Workout Planner + Supabase</title>
 <style>
-  body {
-    margin: 0;
-    font-family: system-ui, sans-serif;
-    background: #0f1724;
-    color: #f1f5f9;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    padding: 20px;
-  }
-  .app {
-    width: 100%;
-    max-width: 900px;
-    background: #1e293b;
-    padding: 20px;
-    border-radius: 12px;
-  }
-  h1 { margin: 0 0 15px; text-align: center; }
-  .input-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 20px;
-  }
-  input, select {
-    flex: 1;
-    padding: 8px;
-    border-radius: 8px;
-    border: none;
-    font-size: 14px;
-  }
-  button {
-    padding: 10px 14px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    font-weight: 600;
-  }
-  .add-btn { background: #6366f1; color: #fff; }
-  .export-btn { background: #14b8a6; color: #fff; }
-  .import-btn { background: #f59e0b; color: #fff; }
-  .week {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
-    gap: 12px;
-  }
-  .day {
-    background: #334155;
-    padding: 12px;
-    border-radius: 8px;
-  }
-  .day h3 {
-    margin: 0 0 8px;
-    font-size: 16px;
-    border-bottom: 1px solid #475569;
-    padding-bottom: 4px;
-  }
-  .exercise {
-    background: #475569;
-    margin-bottom: 6px;
-    padding: 6px;
-    border-radius: 6px;
-    font-size: 14px;
-  }
+  body { margin:0; font-family:system-ui,sans-serif; background:#0f1724; color:#f1f5f9; display:flex; justify-content:center; padding:20px; }
+  .app { width:100%; max-width:900px; background:#1e293b; padding:20px; border-radius:12px; }
+  h1 { text-align:center; margin-bottom:15px; }
+  .input-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px; }
+  input, select, button { padding:8px; border-radius:8px; border:none; font-size:14px; }
+  button { cursor:pointer; font-weight:600; }
+  button.add-btn { background:#6366f1; color:#fff; }
+  .week { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:12px; }
+  .day { background:#334155; padding:12px; border-radius:8px; }
+  .day h3 { margin:0 0 8px; font-size:16px; border-bottom:1px solid #475569; padding-bottom:4px; }
+  .exercise { background:#475569; margin-bottom:6px; padding:6px; border-radius:6px; font-size:14px; }
   .exercise span { display:block; }
-  .actions button {
-    background: transparent;
-    color: #f1f5f9;
-    font-size: 12px;
-    margin-top: 4px;
-    margin-right: 4px;
-  }
+  .actions button { background:transparent; color:#f1f5f9; font-size:12px; margin-top:4px; margin-right:4px; cursor:pointer; }
 </style>
 </head>
 <body>
-  <div class="app">
-    <h1>💪 Weekly Workout Planner</h1>
-    <div class="input-row">
-      <select id="daySelect">
-        <option value="Monday">Monday</option>
-        <option value="Tuesday">Tuesday</option>
-        <option value="Wednesday">Wednesday</option>
-        <option value="Thursday">Thursday</option>
-        <option value="Friday">Friday</option>
-        <option value="Saturday">Saturday</option>
-        <option value="Sunday">Sunday</option>
-      </select>
-      <input type="text" id="exerciseName" placeholder="Exercise (e.g. Bench Press)">
-      <input type="number" id="reps" placeholder="Reps">
-      <input type="number" id="sets" placeholder="Sets">
-      <input type="number" id="weight" placeholder="Weight (kg)">
-      <button class="add-btn" onclick="addExercise()">Add</button>
-    </div>
-
-    <div class="week" id="week"></div>
-
-    <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;">
-      <button class="export-btn" onclick="exportJSON()">Export JSON</button>
-      <button class="import-btn" onclick="document.getElementById('fileInput').click()">Import JSON</button>
-      <input type="file" id="fileInput" accept="application/json" style="display:none" onchange="importJSON(event)">
-    </div>
+<div class="app">
+  <h1>💪 Weekly Workout Planner</h1>
+  
+  <div class="input-row">
+    <select id="daySelect"></select>
+    <input type="text" id="exerciseInput" placeholder="Nombre de ejercicio" oninput="searchExercise()">
+    <select id="exerciseSuggestions" size="4" style="flex:1"></select>
+    <input type="number" id="sets" placeholder="Sets" style="width:60px">
+    <input type="number" id="reps" placeholder="Reps" style="width:60px">
+    <input type="number" id="weight" placeholder="Peso (kg)" style="width:60px">
+    <button class="add-btn" onclick="addExercise()">Agregar</button>
   </div>
 
+  <div class="week" id="week"></div>
+</div>
+
 <script>
-  const daysOfWeek = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-  let routine = {};
+/* === CONFIG SUPABASE === */
+const SUPABASE_URL = "https://<TU-PROYECTO>.supabase.co";
+const SUPABASE_KEY = "<TU-ANON-KEY>";
+const TABLE = "exercises";
 
-  function init() {
-    daysOfWeek.forEach(day => { if (!routine[day]) routine[day] = []; });
-    renderWeek();
-    saveLocal();
-  }
+/* === DATOS LOCALES === */
+const daysOfWeek = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+let routine = {};
 
-  function renderWeek() {
-    const weekDiv = document.getElementById("week");
-    weekDiv.innerHTML = "";
-    daysOfWeek.forEach(day => {
-      const dayDiv = document.createElement("div");
-      dayDiv.className = "day";
-      dayDiv.innerHTML = `<h3>${day}</h3>`;
-      routine[day].forEach((ex,i) => {
-        const exDiv = document.createElement("div");
-        exDiv.className = "exercise";
-        exDiv.innerHTML = `
-          <span><b>${ex.name}</b></span>
-          <span>${ex.sets} x ${ex.reps} @ ${ex.weight}kg</span>
-          <div class="actions">
-            <button onclick="editExercise('${day}',${i})">✏️ Edit</button>
-            <button onclick="deleteExercise('${day}',${i})">🗑️ Delete</button>
-          </div>
-        `;
-        dayDiv.appendChild(exDiv);
-      });
-      weekDiv.appendChild(dayDiv);
-    });
-    saveLocal();
-  }
+/* Inicializar días */
+daysOfWeek.forEach(day => routine[day]=[]);
 
-  function addExercise() {
-    const day = document.getElementById("daySelect").value;
-    const name = document.getElementById("exerciseName").value.trim();
-    const reps = document.getElementById("reps").value;
-    const sets = document.getElementById("sets").value;
-    const weight = document.getElementById("weight").value;
-    if (!name || !reps || !sets) return alert("Fill in exercise, reps and sets!");
-    routine[day].push({ name, reps, sets, weight });
-    document.getElementById("exerciseName").value = "";
-    document.getElementById("reps").value = "";
-    document.getElementById("sets").value = "";
-    document.getElementById("weight").value = "";
-    renderWeek();
-  }
+/* Rellenar select de días */
+const daySelect = document.getElementById("daySelect");
+daysOfWeek.forEach(d=> daySelect.innerHTML += `<option value="${d}">${d}</option>`);
 
-  function deleteExercise(day,i) {
-    routine[day].splice(i,1);
-    renderWeek();
-  }
+/* === FUNCIONES === */
 
-  function editExercise(day,i) {
-    const ex = routine[day][i];
-    const newName = prompt("Exercise name:", ex.name);
-    if (newName===null) return;
-    const newReps = prompt("Reps:", ex.reps);
-    if (newReps===null) return;
-    const newSets = prompt("Sets:", ex.sets);
-    if (newSets===null) return;
-    const newWeight = prompt("Weight:", ex.weight);
-    if (newWeight===null) return;
-    routine[day][i] = { name:newName, reps:newReps, sets:newSets, weight:newWeight };
-    renderWeek();
-  }
+/* Buscar ejercicios en Supabase y crear si no existe */
+async function searchExercise(){
+  const query = document.getElementById("exerciseInput").value.trim();
+  const select = document.getElementById("exerciseSuggestions");
+  select.innerHTML = "";
+  if(!query) return;
 
-  function saveLocal() {
-    localStorage.setItem("routine", JSON.stringify(routine));
-  }
-
-  function loadLocal() {
-    const data = localStorage.getItem("routine");
-    if (data) {
-      try { routine = JSON.parse(data); }
-      catch { routine = {}; }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?name=ilike.%${query}%`, {
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json"
     }
-  }
+  });
+  const data = await res.json();
 
-  function exportJSON() {
-    const data = JSON.stringify(routine, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "routine.json";
-    a.click();
-    URL.revokeObjectURL(url);
+  if(data.length>0){
+    data.forEach(ex=>{
+      const option = document.createElement("option");
+      option.value = ex.name;
+      option.textContent = ex.name;
+      select.appendChild(option);
+    });
+  } else {
+    // crear nuevo
+    const createRes = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
+      method:"POST",
+      headers:{
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+      },
+      body: JSON.stringify({name:query})
+    });
+    const newEx = await createRes.json();
+    const option = document.createElement("option");
+    option.value = newEx[0].name;
+    option.textContent = newEx[0].name;
+    select.appendChild(option);
   }
+}
 
-  function importJSON(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const data = JSON.parse(e.target.result);
-        if (typeof data === "object") {
-          routine = data;
-          renderWeek();
-        } else {
-          alert("Invalid JSON format.");
-        }
-      } catch {
-        alert("Error parsing JSON file.");
-      }
-    };
-    reader.readAsText(file);
-  }
+/* Agregar ejercicio al día */
+function addExercise(){
+  const day = daySelect.value;
+  const exSelect = document.getElementById("exerciseSuggestions");
+  const name = exSelect.value || document.getElementById("exerciseInput").value.trim();
+  const sets = parseInt(document.getElementById("sets").value) || 0;
+  const reps = parseInt(document.getElementById("reps").value) || 0;
+  const weight = parseFloat(document.getElementById("weight").value) || 0;
+  if(!name || sets<=0 || reps<=0) return alert("Completa nombre, sets y reps");
 
-  // initialize
-  loadLocal();
-  init();
+  routine[day].push({name, sets, reps, weight});
+  renderWeek();
+
+  // limpiar inputs
+  document.getElementById("exerciseInput").value="";
+  document.getElementById("sets").value="";
+  document.getElementById("reps").value="";
+  document.getElementById("weight").value="";
+  exSelect.innerHTML="";
+}
+
+/* Editar ejercicio */
+function editExercise(day,i){
+  const ex = routine[day][i];
+  const newName = prompt("Ejercicio:", ex.name); if(!newName) return;
+  const newSets = parseInt(prompt("Sets:", ex.sets)); if(!newSets) return;
+  const newReps = parseInt(prompt("Reps:", ex.reps)); if(!newReps) return;
+  const newWeight = parseFloat(prompt("Peso:", ex.weight)) || 0;
+  routine[day][i] = {name:newName, sets:newSets, reps:newReps, weight:newWeight};
+  renderWeek();
+}
+
+/* Borrar ejercicio */
+function deleteExercise(day,i){
+  routine[day].splice(i,1);
+  renderWeek();
+}
+
+/* Renderizar semana */
+function renderWeek(){
+  const weekDiv = document.getElementById("week");
+  weekDiv.innerHTML="";
+  daysOfWeek.forEach(day=>{
+    const dayDiv = document.createElement("div");
+    dayDiv.className="day";
+    dayDiv.innerHTML=`<h3>${day}</h3>`;
+    routine[day].forEach((ex,i)=>{
+      const exDiv = document.createElement("div");
+      exDiv.className="exercise";
+      exDiv.innerHTML=`
+        <span><b>${ex.name}</b></span>
+        <span>${ex.sets} x ${ex.reps} @ ${ex.weight}kg</span>
+        <div class="actions">
+          <button onclick="editExercise('${day}',${i})">✏️</button>
+          <button onclick="deleteExercise('${day}',${i})">🗑️</button>
+        </div>
+      `;
+      dayDiv.appendChild(exDiv);
+    });
+    weekDiv.appendChild(dayDiv);
+  });
+}
+
+/* Inicial render */
+renderWeek();
 </script>
 </body>
 </html>
