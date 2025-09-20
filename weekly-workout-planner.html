@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Weekly Workout Planner + Supabase</title>
+<title>Weekly Workout Planner + Supabase + JSON</title>
 <style>
   body { margin:0; font-family:system-ui,sans-serif; background:#0f1724; color:#f1f5f9; display:flex; justify-content:center; padding:20px; }
   .app { width:100%; max-width:900px; background:#1e293b; padding:20px; border-radius:12px; }
@@ -12,6 +12,8 @@
   input, select, button { padding:8px; border-radius:8px; border:none; font-size:14px; }
   button { cursor:pointer; font-weight:600; }
   button.add-btn { background:#6366f1; color:#fff; }
+  button.export-btn { background:#14b8a6; color:#fff; }
+  button.import-btn { background:#f59e0b; color:#fff; }
   .week { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:12px; }
   .day { background:#334155; padding:12px; border-radius:8px; }
   .day h3 { margin:0 0 8px; font-size:16px; border-bottom:1px solid #475569; padding-bottom:4px; }
@@ -34,6 +36,12 @@
     <button class="add-btn" onclick="addExercise()">Agregar</button>
   </div>
 
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+    <button class="export-btn" onclick="exportJSON()">Exportar JSON</button>
+    <button class="import-btn" onclick="document.getElementById('fileInput').click()">Importar JSON</button>
+    <input type="file" id="fileInput" accept="application/json" style="display:none" onchange="importJSON(event)">
+  </div>
+
   <div class="week" id="week"></div>
 </div>
 
@@ -47,8 +55,15 @@ const TABLE = "exercises";
 const daysOfWeek = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 let routine = {};
 
-/* Inicializar días */
-daysOfWeek.forEach(day => routine[day]=[]);
+/* Cargar desde localStorage */
+function loadLocal(){
+  const data = localStorage.getItem("routine");
+  if(data){
+    try{ routine = JSON.parse(data); } catch { routine={}; }
+  }
+  daysOfWeek.forEach(d=>{ if(!routine[d]) routine[d]=[]; });
+}
+function saveLocal(){ localStorage.setItem("routine",JSON.stringify(routine)); }
 
 /* Rellenar select de días */
 const daySelect = document.getElementById("daySelect");
@@ -99,7 +114,7 @@ async function searchExercise(){
   }
 }
 
-/* Agregar ejercicio al día */
+/* Agregar ejercicio */
 function addExercise(){
   const day = daySelect.value;
   const exSelect = document.getElementById("exerciseSuggestions");
@@ -110,6 +125,7 @@ function addExercise(){
   if(!name || sets<=0 || reps<=0) return alert("Completa nombre, sets y reps");
 
   routine[day].push({name, sets, reps, weight});
+  saveLocal();
   renderWeek();
 
   // limpiar inputs
@@ -120,7 +136,7 @@ function addExercise(){
   exSelect.innerHTML="";
 }
 
-/* Editar ejercicio */
+/* Editar */
 function editExercise(day,i){
   const ex = routine[day][i];
   const newName = prompt("Ejercicio:", ex.name); if(!newName) return;
@@ -128,16 +144,18 @@ function editExercise(day,i){
   const newReps = parseInt(prompt("Reps:", ex.reps)); if(!newReps) return;
   const newWeight = parseFloat(prompt("Peso:", ex.weight)) || 0;
   routine[day][i] = {name:newName, sets:newSets, reps:newReps, weight:newWeight};
+  saveLocal();
   renderWeek();
 }
 
-/* Borrar ejercicio */
+/* Borrar */
 function deleteExercise(day,i){
   routine[day].splice(i,1);
+  saveLocal();
   renderWeek();
 }
 
-/* Renderizar semana */
+/* Renderizar */
 function renderWeek(){
   const weekDiv = document.getElementById("week");
   weekDiv.innerHTML="";
@@ -162,7 +180,36 @@ function renderWeek(){
   });
 }
 
-/* Inicial render */
+/* Exportar JSON */
+function exportJSON(){
+  const data = JSON.stringify(routine, null, 2);
+  const blob = new Blob([data], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "routine.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* Importar JSON */
+function importJSON(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      routine = data;
+      saveLocal();
+      renderWeek();
+    } catch(err){ alert("Archivo inválido"); }
+  };
+  reader.readAsText(file);
+}
+
+/* Inicializar */
+loadLocal();
 renderWeek();
 </script>
 </body>
