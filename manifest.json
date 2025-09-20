@@ -1,0 +1,9 @@
+{
+  "name": "Workout Planner",
+  "short_name": "Workout",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0f1724",
+  "theme_color": "#6366f1",
+  "icons": []
+}
