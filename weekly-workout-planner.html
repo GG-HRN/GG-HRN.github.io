@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Weekly Workout Planner + Supabase + JSON</title>
+<title>Workout Planner PWA</title>
 <style>
   body { margin:0; font-family:system-ui,sans-serif; background:#0f1724; color:#f1f5f9; display:flex; justify-content:center; padding:20px; }
   .app { width:100%; max-width:900px; background:#1e293b; padding:20px; border-radius:12px; }
   h1 { text-align:center; margin-bottom:15px; }
-  .input-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px; }
+  .input-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px; position:relative; }
   input, select, button { padding:8px; border-radius:8px; border:none; font-size:14px; }
   button { cursor:pointer; font-weight:600; }
   button.add-btn { background:#6366f1; color:#fff; }
@@ -20,19 +20,26 @@
   .exercise { background:#475569; margin-bottom:6px; padding:6px; border-radius:6px; font-size:14px; }
   .exercise span { display:block; }
   .actions button { background:transparent; color:#f1f5f9; font-size:12px; margin-top:4px; margin-right:4px; cursor:pointer; }
+  /* Autocomplete */
+  .autocomplete-list { position:absolute; top:40px; left:0; right:0; background:#475569; border-radius:8px; max-height:150px; overflow:auto; z-index:10; }
+  .autocomplete-item { padding:6px; cursor:pointer; }
+  .autocomplete-item:hover { background:#6366f1; }
 </style>
+<link rel="manifest" href="manifest.json">
 </head>
 <body>
 <div class="app">
-  <h1>💪 Weekly Workout Planner</h1>
+  <h1>💪 Workout Planner</h1>
   
   <div class="input-row">
     <select id="daySelect"></select>
-    <input type="text" id="exerciseInput" placeholder="Nombre de ejercicio" oninput="searchExercise()">
-    <select id="exerciseSuggestions" size="4" style="flex:1"></select>
+    <div style="flex:1; position:relative;">
+      <input type="text" id="exerciseInput" placeholder="Ejercicio" oninput="showSuggestions()">
+      <div id="autocomplete" class="autocomplete-list"></div>
+    </div>
     <input type="number" id="sets" placeholder="Sets" style="width:60px">
     <input type="number" id="reps" placeholder="Reps" style="width:60px">
-    <input type="number" id="weight" placeholder="Peso (kg)" style="width:60px">
+    <input type="number" id="weight" placeholder="Kg" style="width:60px">
     <button class="add-btn" onclick="addExercise()">Agregar</button>
   </div>
 
@@ -46,94 +53,101 @@
 </div>
 
 <script>
-/* === CONFIG SUPABASE === */
-const SUPABASE_URL = "https://govivtogfzastzdxnjro.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdvdml2dG9nZnphc3R6ZHhuanJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzODg2NjIsImV4cCI6MjA3Mzk2NDY2Mn0.J2HtQUwXqrJPfDrP7EjxO9cKEq-x1DvcyEJnY1w6Roc";
-const TABLE = "exercises";
+/* === IndexedDB === */
+let db;
+const request = indexedDB.open("WorkoutPlannerDB", 1);
+request.onupgradeneeded = e => {
+  db = e.target.result;
+  db.createObjectStore("routine", {keyPath:"day"});
+  db.createObjectStore("exercises", {keyPath:"name"});
+};
+request.onsuccess = e => { db = e.target.result; init(); };
 
-/* === DATOS LOCALES === */
 const daysOfWeek = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 let routine = {};
+let allExercises = [];
 
-/* Cargar desde localStorage */
-function loadLocal(){
-  const data = localStorage.getItem("routine");
-  if(data){
-    try{ routine = JSON.parse(data); } catch { routine={}; }
-  }
-  daysOfWeek.forEach(d=>{ if(!routine[d]) routine[d]=[]; });
+/* === IndexedDB helpers === */
+function getStore(name, mode="readonly"){
+  return db.transaction(name, mode).objectStore(name);
 }
-function saveLocal(){ localStorage.setItem("routine",JSON.stringify(routine)); }
 
-/* Rellenar select de días */
-const daySelect = document.getElementById("daySelect");
-daysOfWeek.forEach(d=> daySelect.innerHTML += `<option value="${d}">${d}</option>`);
+function saveRoutine(){
+  const tx = db.transaction("routine","readwrite");
+  const store = tx.objectStore("routine");
+  daysOfWeek.forEach(day => store.put({day,exercises:routine[day]}));
+}
 
-/* === FUNCIONES === */
-
-/* Buscar ejercicios en Supabase y crear si no existe */
-async function searchExercise(){
-  const query = document.getElementById("exerciseInput").value.trim();
-  const select = document.getElementById("exerciseSuggestions");
-  select.innerHTML = "";
-  if(!query) return;
-
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?name=ilike.%${query}%`, {
-    headers: {
-      "apikey": SUPABASE_KEY,
-      "Authorization": `Bearer ${SUPABASE_KEY}`,
-      "Content-Type": "application/json"
-    }
+function loadRoutine(){
+  return new Promise(resolve=>{
+    const tx = db.transaction("routine","readonly");
+    const store = tx.objectStore("routine");
+    const req = store.getAll();
+    req.onsuccess = () => {
+      if(req.result.length===0) daysOfWeek.forEach(d=>routine[d]=[]);
+      else req.result.forEach(r=> routine[r.day]=r.exercises);
+      resolve();
+    };
   });
-  const data = await res.json();
+}
 
-  if(data.length>0){
-    data.forEach(ex=>{
-      const option = document.createElement("option");
-      option.value = ex.name;
-      option.textContent = ex.name;
-      select.appendChild(option);
-    });
-  } else {
-    // crear nuevo
-    const createRes = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
-      method:"POST",
-      headers:{
-        "apikey": SUPABASE_KEY,
-        "Authorization": `Bearer ${SUPABASE_KEY}`,
-        "Content-Type": "application/json",
-        "Prefer": "return=representation"
-      },
-      body: JSON.stringify({name:query})
-    });
-    const newEx = await createRes.json();
-    const option = document.createElement("option");
-    option.value = newEx[0].name;
-    option.textContent = newEx[0].name;
-    select.appendChild(option);
+function loadExercises(){
+  return new Promise(resolve=>{
+    const tx = db.transaction("exercises","readonly");
+    const store = tx.objectStore("exercises");
+    const req = store.getAll();
+    req.onsuccess = ()=> { allExercises = req.result.map(e=>e.name); resolve(); };
+  });
+}
+
+function addExerciseToDB(name){
+  if(!allExercises.includes(name)){
+    allExercises.push(name);
+    const tx = db.transaction("exercises","readwrite");
+    tx.objectStore("exercises").put({name});
   }
+}
+
+/* === UI === */
+function init(){
+  const daySelect = document.getElementById("daySelect");
+  daysOfWeek.forEach(d=> daySelect.innerHTML += `<option value="${d}">${d}</option>`);
+  Promise.all([loadRoutine(), loadExercises()]).then(renderWeek);
+}
+
+/* Autocomplete */
+function showSuggestions(){
+  const query = document.getElementById("exerciseInput").value.toLowerCase();
+  const box = document.getElementById("autocomplete");
+  box.innerHTML="";
+  if(!query) return;
+  const matches = allExercises.filter(e=>e.toLowerCase().includes(query));
+  matches.forEach(m=>{
+    const div = document.createElement("div");
+    div.className="autocomplete-item";
+    div.textContent=m;
+    div.onclick=()=>{ document.getElementById("exerciseInput").value=m; box.innerHTML=""; };
+    box.appendChild(div);
+  });
 }
 
 /* Agregar ejercicio */
 function addExercise(){
-  const day = daySelect.value;
-  const exSelect = document.getElementById("exerciseSuggestions");
-  const name = exSelect.value || document.getElementById("exerciseInput").value.trim();
+  const day = document.getElementById("daySelect").value;
+  const name = document.getElementById("exerciseInput").value.trim();
   const sets = parseInt(document.getElementById("sets").value) || 0;
   const reps = parseInt(document.getElementById("reps").value) || 0;
   const weight = parseFloat(document.getElementById("weight").value) || 0;
   if(!name || sets<=0 || reps<=0) return alert("Completa nombre, sets y reps");
-
   routine[day].push({name, sets, reps, weight});
-  saveLocal();
+  addExerciseToDB(name);
+  saveRoutine();
   renderWeek();
-
-  // limpiar inputs
   document.getElementById("exerciseInput").value="";
   document.getElementById("sets").value="";
   document.getElementById("reps").value="";
   document.getElementById("weight").value="";
-  exSelect.innerHTML="";
+  document.getElementById("autocomplete").innerHTML="";
 }
 
 /* Editar */
@@ -144,18 +158,19 @@ function editExercise(day,i){
   const newReps = parseInt(prompt("Reps:", ex.reps)); if(!newReps) return;
   const newWeight = parseFloat(prompt("Peso:", ex.weight)) || 0;
   routine[day][i] = {name:newName, sets:newSets, reps:newReps, weight:newWeight};
-  saveLocal();
+  addExerciseToDB(newName);
+  saveRoutine();
   renderWeek();
 }
 
 /* Borrar */
 function deleteExercise(day,i){
   routine[day].splice(i,1);
-  saveLocal();
+  saveRoutine();
   renderWeek();
 }
 
-/* Renderizar */
+/* Render */
 function renderWeek(){
   const weekDiv = document.getElementById("week");
   weekDiv.innerHTML="";
@@ -180,19 +195,15 @@ function renderWeek(){
   });
 }
 
-/* Exportar JSON */
+/* Exportar/Importar JSON */
 function exportJSON(){
-  const data = JSON.stringify(routine, null, 2);
+  const data = JSON.stringify(routine,null,2);
   const blob = new Blob([data], {type:"application/json"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
-  a.download = "routine.json";
-  a.click();
+  a.href=url; a.download="routine.json"; a.click();
   URL.revokeObjectURL(url);
 }
-
-/* Importar JSON */
 function importJSON(event){
   const file = event.target.files[0];
   if(!file) return;
@@ -201,16 +212,17 @@ function importJSON(event){
     try{
       const data = JSON.parse(e.target.result);
       routine = data;
-      saveLocal();
+      saveRoutine();
       renderWeek();
-    } catch(err){ alert("Archivo inválido"); }
+    }catch(err){ alert("Archivo inválido"); }
   };
   reader.readAsText(file);
 }
 
-/* Inicializar */
-loadLocal();
-renderWeek();
+/* === PWA Service Worker === */
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js");
+}
 </script>
 </body>
 </html>
