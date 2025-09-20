@@ -6,16 +6,16 @@
   <title>Backend Developer — Portfolio</title>
   <style>
     :root {
-      --bg: #f9fafb;
-      --primary: #1f2937;
-      --accent: #2563eb;
+      --bg: #f3f4f6;
+      --primary: #1e3a8a;
+      --accent: #3b82f6;
       --light: #ffffff;
       --text: #111827;
       --muted: #6b7280;
       --radius: 12px;
-      --shadow: 0 8px 20px rgba(0,0,0,0.08);
+      --shadow: 0 6px 18px rgba(0,0,0,0.08);
     }
-    * {box-sizing:border-box;margin:0;padding:0}
+    * { box-sizing:border-box; margin:0; padding:0; }
     body {
       font-family: "Inter", system-ui, sans-serif;
       color: var(--text);
@@ -26,9 +26,9 @@
     /* Sidebar */
     nav {
       position: fixed;
-      top: 0; left: -240px;
+      top: 0; left: -250px;
       width: 220px; height: 100%;
-      background: var(--primary);
+      background: linear-gradient(180deg, var(--primary), #2563eb);
       color: var(--light);
       padding: 20px;
       display: flex;
@@ -38,23 +38,22 @@
       z-index: 1000;
     }
     nav.active { left: 0; }
-    nav h2 { font-size: 20px; margin-bottom: 14px; font-weight:600; }
+    nav h2 { font-size: 22px; margin-bottom: 14px; font-weight:600; }
     nav a {
       color: var(--light);
       text-decoration: none;
       padding: 10px 14px;
       border-radius: var(--radius);
       transition: background 0.2s;
-      display: block;
       font-size: 15px;
     }
-    nav a:hover { background: rgba(255,255,255,0.1); }
+    nav a:hover { background: rgba(255,255,255,0.15); }
 
-    /* Overlay for mobile */
+    /* Overlay */
     .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.4);
+      background: rgba(0,0,0,0.5);
       display: none;
       z-index: 900;
     }
@@ -76,26 +75,28 @@
       transition: all 0.3s;
     }
 
-    /* Main content */
+    /* Main */
     main {
       padding: 24px;
-      max-width: 900px;
+      max-width: 1000px;
       margin: 0 auto;
     }
     section {
       background: var(--light);
       border-radius: var(--radius);
-      padding: 24px;
-      margin-bottom: 28px;
+      padding: 28px;
+      margin-bottom: 32px;
       box-shadow: var(--shadow);
+      transition: transform 0.2s;
     }
+    section:hover { transform: translateY(-2px); }
     h1, h2, h3 { margin-bottom: 12px; }
     p { margin-bottom: 12px; line-height: 1.6; }
 
-    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
     .chip {
-      background: #e0e7ff;
-      color: #1e3a8a;
+      background: #dbeafe;
+      color: #1e40af;
       padding: 6px 12px;
       border-radius: 999px;
       font-size: 13px;
@@ -105,21 +106,21 @@
     .projects {
       display: grid;
       grid-template-columns: repeat(auto-fit,minmax(260px,1fr));
-      gap: 16px;
+      gap: 20px;
     }
     .card {
       background: var(--light);
       border: 1px solid #e5e7eb;
       border-radius: var(--radius);
-      padding: 16px;
+      padding: 20px;
       box-shadow: var(--shadow);
-      transition: transform 0.2s;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
-    .card:hover { transform: translateY(-4px); }
-    .card h3 { margin-bottom: 6px; font-size: 16px; }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+    }
+    .card h3 { margin-bottom: 6px; font-size: 18px; }
     .card p { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
     .card a {
       display: inline-block;
@@ -129,8 +130,11 @@
       padding: 8px 12px;
       border-radius: var(--radius);
       font-size: 14px;
-      text-align: center;
+      transition: background 0.2s;
     }
+    .card a:hover { background: #1d4ed8; }
+
+    /* CTA */
     .cta {
       display: inline-block;
       background: var(--accent);
@@ -139,14 +143,16 @@
       border-radius: var(--radius);
       text-decoration: none;
       margin-top: 10px;
+      transition: background 0.2s;
     }
+    .cta:hover { background: #1d4ed8; }
 
     /* Responsive */
     @media(min-width: 768px) {
       .hamburger { display: none; }
       .overlay { display: none !important; }
       nav { left: 0; }
-      main { margin-left: 220px; }
+      main { margin-left: 240px; }
     }
   </style>
 </head>
@@ -158,14 +164,14 @@
   <div class="overlay" id="overlay"></div>
   <nav id="sidebar">
     <h2>Portfolio</h2>
-    <a href="#about">About</a>
-    <a href="#skills">Skills</a>
-    <a href="#projects">Projects</a>
-    <a href="#services">Services</a>
-    <a href="#contact">Contact</a>
+    <a href="#about" class="nav-link">About</a>
+    <a href="#skills" class="nav-link">Skills</a>
+    <a href="#projects" class="nav-link">Projects</a>
+    <a href="#services" class="nav-link">Services</a>
+    <a href="#contact" class="nav-link">Contact</a>
   </nav>
 
-  <!-- Main content -->
+  <!-- Main -->
   <main>
     <section id="about">
       <h1>Hi 👋 I'm a Backend Developer</h1>
@@ -207,7 +213,7 @@
         </div>
         <div class="card">
           <h3>Weekly Workout Planner</h3>
-          <p>Plan and track weekly workouts using a clean interface with HTML, CSS, and JS.</p>
+          <p>Plan and track weekly workouts with HTML, CSS, and JS.</p>
           <a href="https://gg-hrn.github.io/weekly-workout-planner.html" target="_blank">View Project</a>
         </div>
       </div>
@@ -233,13 +239,22 @@
     const toggleBtn = document.getElementById('toggleBtn');
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('overlay');
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    const closeSidebar = () => {
+      sidebar.classList.remove('active');
+      overlay.classList.remove('active');
+    };
+
     toggleBtn.addEventListener('click', () => {
       sidebar.classList.toggle('active');
       overlay.classList.toggle('active');
     });
-    overlay.addEventListener('click', () => {
-      sidebar.classList.remove('active');
-      overlay.classList.remove('active');
+
+    overlay.addEventListener('click', closeSidebar);
+
+    navLinks.forEach(link => {
+      link.addEventListener('click', closeSidebar);
     });
   </script>
 </body>
