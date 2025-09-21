@@ -43,6 +43,10 @@
     display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:25;
   }
   #overlay.active{display:block}
+
+  /* Advisories */
+  .advice{background:#1e293b;padding:12px;border-radius:8px;margin-bottom:10px}
+  .advice strong{color:#f87171}
 </style>
 </head>
 <body>
@@ -55,46 +59,113 @@
     <ul>
       <li data-nav="products.html">Products</li>
       <li data-nav="categories.html">Categories</li>
-      <li data-nav="index.html">Back to Stores</li>
+      <li data-nav="brands.html">Brands</li>
+      <li data-nav="subcategories.html">Subcategories</li>
+      <li data-nav="components.html">Components</li>
+      <li data-nav="sales.html">Sales</li>
+      <li data-nav="production.html">Production</li>
+      <li data-nav="index.html">← Back to Stores</li>
     </ul>
   </div>
 
   <div id="overlay"></div>
 
   <main style="padding:16px">
-    <h2>Dashboard</h2>
-    <p>This is a simplified version — only testing sidebar open/close.</p>
+    <h2 id="dashTitle">Dashboard</h2>
+    <div id="advisories"></div>
   </main>
 
 <script>
-document.addEventListener("DOMContentLoaded",()=>{
-  const sidebar=document.getElementById("sidebar");
-  const overlay=document.getElementById("overlay");
-  const menuBtn=document.getElementById("menuBtn");
-
-  function openSidebar(){
-    sidebar.classList.add("active");
-    overlay.classList.add("active");
-    menuBtn.style.display="none";
-  }
-  function closeSidebar(){
-    sidebar.classList.remove("active");
-    overlay.classList.remove("active");
-    menuBtn.style.display="";
-  }
-
-  menuBtn.addEventListener("click",openSidebar);
-  overlay.addEventListener("click",closeSidebar);
-  document.addEventListener("keydown",e=>{
-    if(e.key==="Escape") closeSidebar();
+/* ---- IndexedDB helpers ---- */
+const DB_NAME='StoresDB',DB_VERSION=1;let dbPromise;
+function openDB(){
+  if(dbPromise) return dbPromise;
+  dbPromise=new Promise((res,rej)=>{
+    const req=indexedDB.open(DB_NAME,DB_VERSION);
+    req.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains('stores'))
+        db.createObjectStore('stores',{keyPath:'name'});
+    };
+    req.onsuccess=e=>res(e.target.result);
+    req.onerror=e=>rej(e.target.error);
   });
-  sidebar.querySelectorAll("li[data-nav]").forEach(li=>{
-    li.addEventListener("click",()=>{
-      closeSidebar();
-      setTimeout(()=>{ window.location.href=li.getAttribute("data-nav"); },200);
-    });
+  return dbPromise;
+}
+async function idbGet(store,key){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readonly');
+    const req=tx.objectStore(store).get(key);
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+/* ---- Sidebar ---- */
+const sidebar=document.getElementById("sidebar");
+const overlay=document.getElementById("overlay");
+const menuBtn=document.getElementById("menuBtn");
+
+function openSidebar(){
+  sidebar.classList.add("active");
+  overlay.classList.add("active");
+  menuBtn.style.display="none";
+}
+function closeSidebar(){
+  sidebar.classList.remove("active");
+  overlay.classList.remove("active");
+  menuBtn.style.display="";
+}
+menuBtn.addEventListener("click",openSidebar);
+overlay.addEventListener("click",closeSidebar);
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape") closeSidebar();
+});
+sidebar.querySelectorAll("li[data-nav]").forEach(li=>{
+  li.addEventListener("click",()=>{
+    closeSidebar();
+    setTimeout(()=>{ window.location.href=li.getAttribute("data-nav"); },200);
   });
 });
+
+/* ---- Dashboard Logic ---- */
+const storeName=localStorage.getItem('activeStore');
+const dashTitle=document.getElementById('dashTitle');
+const advisoriesDiv=document.getElementById('advisories');
+
+if(!storeName){
+  dashTitle.textContent="No store selected";
+}else{
+  dashTitle.textContent=`Dashboard - ${storeName}`;
+  loadDashboard();
+}
+
+async function loadDashboard(){
+  const store=await idbGet('stores',storeName);
+  if(!store){
+    advisoriesDiv.innerHTML=`<div class="advice"><strong>Error:</strong> Store not found.</div>`;
+    return;
+  }
+
+  let advices=[];
+
+  if(store.products.length===0)
+    advices.push("No products created yet.");
+  else {
+    const lowStock=store.products.filter(p=>(p.stock||0)<=2);
+    if(lowStock.length>0)
+      advices.push(`${lowStock.length} product(s) low on stock.`);
+  }
+
+  if(store.categories.length===0) advices.push("No categories defined yet.");
+  if(store.brands.length===0) advices.push("No brands defined yet.");
+  if(store.subcategories.length===0) advices.push("No subcategories defined yet.");
+
+  advisoriesDiv.innerHTML = advices.length>0
+    ? advices.map(a=>`<div class="advice"><strong>Notice:</strong> ${a}</div>`).join('')
+    : `<div class="advice">All good! No issues detected.</div>`;
+}
 </script>
 </body>
 </html>
