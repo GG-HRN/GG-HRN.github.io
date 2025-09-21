@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>To-Do List</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="To-Do List">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+body{margin:0;font-family:system-ui,Arial;background:#0f1724;color:#fff;display:flex;flex-direction:column;align-items:center;padding:20px}
+h1{text-align:center;margin-bottom:20px}
+#taskInputRow{display:flex;gap:8px;width:100%;max-width:500px;margin-bottom:20px}
+#taskInputRow input{flex:1;padding:10px;border-radius:8px;border:0;font-size:16px}
+#taskInputRow button{padding:10px;border-radius:8px;border:0;background:#6366f1;color:#fff;font-weight:700;font-size:16px}
+#tasks{width:100%;max-width:500px;display:flex;flex-direction:column;gap:8px}
+.task{background:#1e293b;padding:10px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
+.task.completed{opacity:0.6;text-decoration:line-through}
+.task button{background:#ef4444;color:#fff;border:0;padding:4px 8px;border-radius:6px;cursor:pointer}
+.export-import{display:flex;gap:8px;margin-bottom:20px;width:100%;max-width:500px}
+.export-import button{flex:1;padding:10px;border-radius:8px;border:0;font-weight:700}
+</style>
+</head>
+<body>
+<h1>📝 To-Do List</h1>
+
+<div id="taskInputRow">
+  <input id="newTask" placeholder="Nueva tarea">
+  <button id="addBtn">Agregar</button>
+</div>
+
+<div class="export-import">
+  <button onclick="exportJSON()" style="background:#14b8a6;color:#fff;">Exportar JSON</button>
+  <button onclick="document.getElementById('fileInput').click()" style="background:#f59e0b;color:#fff;">Importar JSON</button>
+  <input type="file" id="fileInput" accept="application/json" style="display:none" onchange="importJSON(event)">
+</div>
+
+<div id="tasks"></div>
+
+<script>
+/* ---- IndexedDB wrapper ---- */
+const DB_NAME = 'TodoListsDB';
+const DB_VERSION = 1;
+let dbPromise;
+
+function openDB(){
+  if(dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve,reject)=>{
+    const req = indexedDB.open(DB_NAME,DB_VERSION);
+    req.onupgradeneeded = e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains('lists')) db.createObjectStore('lists',{keyPath:'name'});
+    };
+    req.onsuccess=e=>resolve(e.target.result);
+    req.onerror=e=>reject(e.target.error);
+  });
+  return dbPromise;
+}
+
+async function idbGet(store,key){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readonly');
+    const req=tx.objectStore(store).get(key);
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+async function idbPut(store,value){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readwrite');
+    const req=tx.objectStore(store).put(value);
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+/* ---- App state ---- */
+const activeList = localStorage.getItem('activeList') || 'Default';
+let list = { name: activeList, items: [] };
+
+/* ---- Init ---- */
+async function init(){
+  const stored = await idbGet('lists', activeList);
+  if(stored) list = stored;
+  renderTasks();
+}
+init();
+
+/* ---- UI ---- */
+const tasksDiv = document.getElementById('tasks');
+const input = document.getElementById('newTask');
+document.getElementById('addBtn').addEventListener('click',addTask);
+
+async function addTask(){
+  const text = input.value.trim();
+  if(!text) return alert('Escribí una tarea');
+  list.items.push({ text, done:false });
+  await saveList();
+  renderTasks();
+  input.value='';
+}
+
+function renderTasks(){
+  tasksDiv.innerHTML='';
+  list.items.forEach((t,i)=>{
+    const div = document.createElement('div');
+    div.className='task'+(t.done?' completed':'');
+    div.innerHTML=`
+      <span onclick="toggleTask(${i})">${t.text}</span>
+      <button onclick="deleteTask(${i})">🗑️</button>
+    `;
+    tasksDiv.appendChild(div);
+  });
+}
+
+async function toggleTask(i){
+  list.items[i].done=!list.items[i].done;
+  await saveList();
+  renderTasks();
+}
+
+async function deleteTask(i){
+  list.items.splice(i,1);
+  await saveList();
+  renderTasks();
+}
+
+async function saveList(){
+  await idbPut('lists', list);
+}
+
+/* ---- Export / Import ---- */
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(list.items,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${activeList}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function importJSON(e){
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload=async ev=>{
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(!Array.isArray(data)) return alert('Formato inválido');
+      list.items = data;
+      await saveList();
+      renderTasks();
+    }catch(err){ alert('Archivo inválido'); }
+  };
+  reader.readAsText(file);
+}
+
+/* ---- Service Worker ---- */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js',{scope:'./'})
+    .then(()=>console.log('SW registered (todolist)'))
+    .catch(e=>console.warn('SW failed',e));
+}
+</script>
+</body>
+</html>
