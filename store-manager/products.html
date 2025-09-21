@@ -120,10 +120,8 @@ prodCategory.addEventListener('change',()=>{
   const cat=prodCategory.value;
   const filteredSubs=subcategories.filter(s=>s.category===cat).map(s=>s.name);
   prodSubcategory.innerHTML='';
-  filteredSubs.forEach(s=>{
-    const o=document.createElement('option');
-    o.value=o.textContent=s; 
-    prodSubcategory.appendChild(o);
+  filteredSubs.forEach(name=>{
+    const o=document.createElement('option'); o.value=o.textContent=name; prodSubcategory.appendChild(o);
   });
 });
 
@@ -142,7 +140,21 @@ chkExpiration.addEventListener('change',()=>{
 
 prodForm.addEventListener('submit',e=>{
   e.preventDefault();
-  const p={name:prodName.value.trim(),brand:prodBrand.value,category:prodCategory.value,subcategory:prodSubcategory.value,price:parseFloat(prodPrice.value),cost:parseFloat(prodCost.value),warranty:chkWarranty.checked,expiration:chkExpiration.checked,serial:prodSerial.value,warrantyDate:prodWarrantyDate.value,expirationDate:prodExpirationDate.value,lot:prodLot.value,quantity:chkWarranty.checked?1:(chkExpiration.checked?parseInt(prodQuantityExp.value):parseInt(prodQuantityNorm.value))};
+  const p={
+    name: prodName.value.trim(),
+    brand: prodBrand.value,
+    category: prodCategory.value,
+    subcategory: prodSubcategory.value,
+    price: parseFloat(prodPrice.value),
+    cost: parseFloat(prodCost.value),
+    warranty: chkWarranty.checked,
+    expiration: chkExpiration.checked,
+    serial: prodSerial.value,
+    warrantyDate: prodWarrantyDate.value,
+    expirationDate: prodExpirationDate.value,
+    lot: prodLot.value,
+    quantity: chkWarranty.checked?1:(chkExpiration.checked?parseInt(prodQuantityExp.value):parseInt(prodQuantityNorm.value))
+  };
   if(!p.name||!p.brand||!p.category||!p.subcategory||!p.price||!p.cost){alert('Fill all required fields');return;}
   if(!brands.includes(p.brand)){brands.push(p.brand); storeObj.brands=brands;}
   if(!categories.includes(p.category)){categories.push(p.category); storeObj.categories=categories;}
@@ -170,7 +182,7 @@ function renderProducts(){
     const div=document.createElement('div'); div.className='prodCard';
     div.innerHTML=`
       <div class="prodName">${p.name}</div>
-      <div class="prodDetail">Brand: ${p.brand} | Category: ${p.category} | Sub: ${typeof p.subcategory==='object'?p.subcategory.name:p.subcategory}</div>
+      <div class="prodDetail">Brand: ${p.brand} | Category: ${p.category} | Sub: ${p.subcategory}</div>
       <div class="prodDetail">Price: $${p.price} | Cost: $${p.cost} | Qty: ${p.quantity}</div>
       ${p.warranty?`<div class="prodDetail">Warranty: ${p.serial} / ${p.warrantyDate}</div>`:''}
       ${p.expiration?`<div class="prodDetail">Exp: ${p.expirationDate} | Lot: ${p.lot}</div>`:''}
@@ -191,19 +203,13 @@ function editProduct(index){
   prodPrice.value=p.price; prodCost.value=p.cost;
   chkWarranty.checked=p.warranty; chkExpiration.checked=p.expiration;
   warrantyFields.classList.toggle('hidden',!p.warranty); expirationFields.classList.toggle('hidden',!p.expiration);
-  prodSerial.value=p.serial; prodWarrantyDate.value=p.warrantyDate;
-  prodExpirationDate.value=p.expirationDate; prodLot.value=p.lot;
-  if(p.warranty){prodQuantity.value=1; prodQuantity.readOnly=true; prodQuantityNorm.classList.add('hidden');}
-  else if(p.expiration){prodQuantityExp.value=p.quantity; prodQuantityNorm.classList.add('hidden');}
-  else{prodQuantityNorm.value=p.quantity; prodQuantityNorm.classList.remove('hidden');}
-  products.splice(index,1); storeObj.products=products; db.transaction('stores','readwrite').objectStore('stores').put(storeObj);
-  renderProducts();
+  prodSerial.value=p.serial; prodWarrantyDate.value=p.warrantyDate; prodExpirationDate.value=p.expirationDate;
+  prodLot.value=p.lot; prodQuantity.value=p.quantity; prodQuantityExp.value=p.quantity; prodQuantityNorm.value=p.quantity;
 }
 
-function deleteProduct(index){if(confirm("Delete product?")){products.splice(index,1); storeObj.products=products; db.transaction('stores','readwrite').objectStore('stores').put(storeObj); renderProducts();}}
+function deleteProduct(index){if(confirm("Delete product?")){products.splice(index,1); storeObj.products=products; const tx=db.transaction('stores','readwrite'); tx.objectStore('stores').put(storeObj); renderProducts();}}
 prodSearch.addEventListener('input',()=>{currentPage=1; renderProducts();});
-</script>
-<script>
+
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js',{scope:'./'}).then(()=>console.log('SW registered')).catch(e=>console.warn('SW failed',e));}
 </script>
 </body>
