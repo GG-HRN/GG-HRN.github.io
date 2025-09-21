@@ -253,10 +253,10 @@ prodForm.addEventListener("submit",async e=>{
     existingIndex=currentStore.products.findIndex(p=>p.serial===serial);
     if(existingIndex>=0){alert("Serial already exists");return;}
   } else if(expiration && lotNumber){
-    existingIndex=currentStore.products.findIndex(p=>p.name===pName && p.lotNumber===lotNumber);
+    existingIndex=currentStore.products.findIndex(p=>p.name===pName && p.price===price && p.cost===cost && p.lotNumber===lotNumber && p.expirationDate===expDate);
     if(existingIndex>=0){currentStore.products[existingIndex].quantity+=quantity;await idbPut('stores',currentStore);clearForm();applyFilters();return;}
   } else {
-    existingIndex=currentStore.products.findIndex(p=>p.name===pName && !p.warranty && !p.lot);
+    existingIndex=currentStore.products.findIndex(p=>p.name===pName && p.price===price && p.cost===cost && !p.warranty && !p.lot);
     if(existingIndex>=0){currentStore.products[existingIndex].quantity+=quantity;await idbPut('stores',currentStore);clearForm();applyFilters();return;}
   }
 
@@ -288,7 +288,8 @@ async function editProduct(index){
 
   // Duplication checks
   if(newWarranty && currentStore.products.some((prod,i)=>i!==index && prod.serial===newSerial)){alert("Serial exists!");return;}
-  if(newExpiration && newLot && currentStore.products.some((prod,i)=>i!==index && prod.name===newName && prod.lotNumber===newLot)){alert("Duplicate lot exists!");return;}
+  if(newExpiration && newLot && currentStore.products.some((prod,i)=>i!==index && prod.name===newName && prod.price===newPrice && prod.cost===newCost && prod.lotNumber===newLot && prod.expirationDate===newExpDate)){alert("Duplicate lot exists!");return;}
+  if(!newWarranty && !newExpiration && currentStore.products.some((prod,i)=>i!==index && prod.name===newName && prod.price===newPrice && prod.cost===newCost)){alert("Duplicate product exists!");return;}
 
   currentStore.products[index]={name:newName,category:newCat,subcategory:newSub,brand:newBrand,price:newPrice,cost:newCost,quantity:newQty,warranty:newWarranty,serial:newSerial,warrantyDate:newWarrantyDate,expiration:newExpiration,expirationDate:newExpDate,lot:newExpiration,lotNumber:newLot};
   await idbPut('stores',currentStore);applyFilters();
