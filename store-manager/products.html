@@ -44,6 +44,8 @@ button.delete{background:#ef4444;color:#fff}
 .pagination button.active{background:#10b981}
 
 .hidden{display:none}
+.inline-checkboxes{display:flex;gap:12px;align-items:center;margin-bottom:8px}
+.inline-checkboxes label{margin:0;display:flex;align-items:center;gap:4px}
 </style>
 </head>
 <body>
@@ -60,14 +62,17 @@ button.delete{background:#ef4444;color:#fff}
   <select id="prodBrand" required></select>
   <input type="number" id="prodPrice" placeholder="Price" step="0.01" required/>
   <input type="number" id="prodCost" placeholder="Cost" step="0.01" required/>
-  
-  <label><input type="checkbox" id="chkWarranty"/> Warranty</label>
+
+  <div class="inline-checkboxes">
+    <label><input type="checkbox" id="chkWarranty"/> Warranty</label>
+    <label><input type="checkbox" id="chkExpiration"/> Expiration</label>
+  </div>
+
   <div id="warrantyFields" class="hidden">
     <input type="text" id="prodSerial" placeholder="Serial Number"/>
     <input type="date" id="prodWarrantyDate"/>
   </div>
 
-  <label><input type="checkbox" id="chkExpiration"/> Expiration</label>
   <div id="expirationFields" class="hidden">
     <input type="date" id="prodExpirationDate"/>
     <input type="text" id="prodLot" placeholder="Lot Number"/>
@@ -170,9 +175,17 @@ function populateSelect(select,arr,placeholder){
   });
 }
 
-/* Checkbox logic */
-chkWarranty.addEventListener("change",()=>warrantyFields.classList.toggle("hidden",!chkWarranty.checked));
-chkExpiration.addEventListener("change",()=>expirationFields.classList.toggle("hidden",!chkExpiration.checked));
+/* Checkbox logic: mutually exclusive */
+chkWarranty.addEventListener("change",()=>{
+  if(chkWarranty.checked) chkExpiration.checked=false;
+  warrantyFields.classList.toggle("hidden",!chkWarranty.checked);
+  expirationFields.classList.add("hidden");
+});
+chkExpiration.addEventListener("change",()=>{
+  if(chkExpiration.checked) chkWarranty.checked=false;
+  expirationFields.classList.toggle("hidden",!chkExpiration.checked);
+  warrantyFields.classList.add("hidden");
+});
 
 /* Filters & pagination */
 function applyFilters(){
@@ -247,17 +260,24 @@ prodForm.addEventListener("submit",async e=>{
   let quantity=parseInt(prodQuantity.value)||1;
   if(warranty) quantity=1;
 
-  // Duplication rules
   let existingIndex=-1;
   if(warranty){
-    existingIndex=currentStore.products.findIndex(p=>p.serial===serial);
-    if(existingIndex>=0){alert("Serial already exists");return;}
+    // Always new entry for warranty
+    existingIndex=-1;
   } else if(expiration && lotNumber){
-    existingIndex=currentStore.products.findIndex(p=>p.name===pName && p.price===price && p.cost===cost && p.lotNumber===lotNumber && p.expirationDate===expDate);
-    if(existingIndex>=0){currentStore.products[existingIndex].quantity+=quantity;await idbPut('stores',currentStore);clearForm();applyFilters();return;}
+    existingIndex=currentStore.products.findIndex(p=>
+      p.name===pName && p.price===price && p.cost===cost &&
+      p.lotNumber===lotNumber && p.expirationDate===expDate &&
+      p.brand===pBrand && p.category===pCat && p.subcategory===pSub
+    );
+    if(existingIndex>=0){currentStore.products[existingIndex].quantity+=quantity; await idbPut('stores',currentStore); clearForm(); applyFilters(); return;}
   } else {
-    existingIndex=currentStore.products.findIndex(p=>p.name===pName && p.price===price && p.cost===cost && !p.warranty && !p.lot);
-    if(existingIndex>=0){currentStore.products[existingIndex].quantity+=quantity;await idbPut('stores',currentStore);clearForm();applyFilters();return;}
+    existingIndex=currentStore.products.findIndex(p=>
+      p.name===pName && p.price===price && p.cost===cost &&
+      p.brand===pBrand && p.category===pCat && p.subcategory===pSub &&
+      !p.warranty && !p.lot
+    );
+    if(existingIndex>=0){currentStore.products[existingIndex].quantity+=quantity; await idbPut('stores',currentStore); clearForm(); applyFilters(); return;}
   }
 
   currentStore.products.push({name:pName,category:pCat,subcategory:pSub,brand:pBrand,price,cost,quantity,warranty,serial,warrantyDate,expiration,expirationDate:expDate,lot:expiration,lotNumber});
@@ -288,8 +308,15 @@ async function editProduct(index){
 
   // Duplication checks
   if(newWarranty && currentStore.products.some((prod,i)=>i!==index && prod.serial===newSerial)){alert("Serial exists!");return;}
-  if(newExpiration && newLot && currentStore.products.some((prod,i)=>i!==index && prod.name===newName && prod.price===newPrice && prod.cost===newCost && prod.lotNumber===newLot && prod.expirationDate===newExpDate)){alert("Duplicate lot exists!");return;}
-  if(!newWarranty && !newExpiration && currentStore.products.some((prod,i)=>i!==index && prod.name===newName && prod.price===newPrice && prod.cost===newCost)){alert("Duplicate product exists!");return;}
+  if(newExpiration && newLot && currentStore.products.some((prod,i)=>i!==index &&
+     prod.name===newName && prod.price===newPrice && prod.cost===newCost &&
+     prod.lotNumber===newLot && prod.expirationDate===newExpDate &&
+     prod.brand===newBrand && prod.category===newCat && prod.subcategory===newSub
+  )){alert("Duplicate lot exists!");return;}
+  if(!newWarranty && !newExpiration && currentStore.products.some((prod,i)=>i!==index &&
+     prod.name===newName && prod.price===newPrice && prod.cost===newCost &&
+     prod.brand===newBrand && prod.category===newCat && prod.subcategory===newSub
+  )){alert("Duplicate product exists!");return;}
 
   currentStore.products[index]={name:newName,category:newCat,subcategory:newSub,brand:newBrand,price:newPrice,cost:newCost,quantity:newQty,warranty:newWarranty,serial:newSerial,warrantyDate:newWarrantyDate,expiration:newExpiration,expirationDate:newExpDate,lot:newExpiration,lotNumber:newLot};
   await idbPut('stores',currentStore);applyFilters();
