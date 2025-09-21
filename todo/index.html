@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>To-Do Lists</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="To-Do Lists">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  body{margin:0;font-family:system-ui,Arial;background:#0f1724;color:#fff;display:flex;flex-direction:column;align-items:center;padding:20px}
+  h1{text-align:center;margin-bottom:20px}
+  #cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;width:100%;max-width:800px;margin-bottom:20px}
+  .card{background:#1e293b;padding:15px;border-radius:12px;text-align:center;cursor:pointer;transition:0.2s}
+  .card:hover{background:#374151}
+  .card h2{margin:0;font-size:16px;word-break:break-word}
+  .new-row{display:flex;width:100%;max-width:400px;gap:8px;margin-bottom:20px}
+  .new-row input{flex:1;padding:10px;border-radius:8px;border:0;font-size:16px}
+  .new-row button{padding:10px;border-radius:8px;border:0;background:#6366f1;color:#fff;font-weight:700;font-size:16px}
+</style>
+</head>
+<body>
+  <h1>📝 Mis To-Do Lists</h1>
+
+  <div id="cards"></div>
+
+  <div class="new-row">
+    <input id="newListName" placeholder="Nombre nueva lista">
+    <button id="createBtn">Crear</button>
+  </div>
+
+<script>
+/* --- IndexedDB helper --- */
+const DB_NAME = 'TodoListsDB';
+const DB_VERSION = 1;
+let dbPromise;
+
+function openDB(){
+  if(dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject)=>{
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e=>{
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains('lists')) db.createObjectStore('lists', { keyPath:'name' });
+    };
+    req.onsuccess = e=>resolve(e.target.result);
+    req.onerror = e=>reject(e.target.error);
+  });
+  return dbPromise;
+}
+
+async function idbGetAll(storeName){
+  const db = await openDB();
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(storeName,'readonly');
+    const req = tx.objectStore(storeName).getAll();
+    req.onsuccess = ()=>res(req.result || []);
+    req.onerror = ()=>rej(req.error);
+  });
+}
+async function idbGet(storeName,key){
+  const db = await openDB();
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(storeName,'readonly');
+    const req = tx.objectStore(storeName).get(key);
+    req.onsuccess = ()=>res(req.result);
+    req.onerror = ()=>rej(req.error);
+  });
+}
+async function idbPut(storeName,value){
+  const db = await openDB();
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(storeName,'readwrite');
+    const req = tx.objectStore(storeName).put(value);
+    req.onsuccess = ()=>res(req.result);
+    req.onerror = ()=>rej(req.error);
+  });
+}
+
+/* --- App logic --- */
+const cardsDiv = document.getElementById('cards');
+const input = document.getElementById('newListName');
+document.getElementById('createBtn').addEventListener('click', createList);
+
+async function loadLists(){
+  const lists = await idbGetAll('lists');
+  cardsDiv.innerHTML = '';
+  lists.forEach(l=>{
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `<h2>${l.name}</h2>`;
+    div.onclick = ()=>openList(l.name);
+    cardsDiv.appendChild(div);
+  });
+}
+
+async function createList(){
+  const name = input.value.trim();
+  if(!name) return alert('Escribí un nombre para la lista');
+  const existing = await idbGet('lists', name);
+  if(existing){
+    alert('Ya existe esa lista');
+    return;
+  }
+  await idbPut('lists', { name, items: [] });
+  input.value='';
+  loadLists();
+}
+
+function openList(name){
+  localStorage.setItem('activeList', name);
+  window.location.href='todolist.html'; // tu página del To-Do List
+}
+
+/* --- Service Worker --- */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js', { scope: './' })
+    .then(()=>console.log('SW registered'))
+    .catch(e=>console.warn('SW failed', e));
+}
+
+/* --- Init --- */
+loadLists();
+</script>
+</body>
+</html>
