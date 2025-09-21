@@ -183,10 +183,10 @@ async function createStore(){
   loadCards();
 }
 
+// Open dashboard when a store is clicked
 function openStore(name){
-  localStorage.setItem('activeStore',name);
-  // placeholder for later detailed store manager page
-  alert('Opening store: '+name);
+  localStorage.setItem('activeStore', name);
+  window.location.href = 'dashboard.html';
 }
 
 /* --- Service Worker --- */
