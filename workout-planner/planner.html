@@ -29,7 +29,6 @@ button.import-btn { background:#f59e0b; color:#fff; }
 <body>
 <div class="app">
   <h1>💪 Workout Planner</h1>
-
   <div class="input-row">
     <select id="daySelect"></select>
     <div style="flex:1; position:relative;">
@@ -41,13 +40,11 @@ button.import-btn { background:#f59e0b; color:#fff; }
     <input type="number" id="weight" placeholder="Kg" style="width:60px">
     <button class="add-btn" onclick="addExercise()">Agregar</button>
   </div>
-
   <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
     <button class="export-btn" onclick="exportJSON()">Exportar JSON</button>
     <button class="import-btn" onclick="document.getElementById('fileInput').click()">Importar JSON</button>
     <input type="file" id="fileInput" accept="application/json" style="display:none" onchange="importJSON(event)">
   </div>
-
   <div class="week" id="week"></div>
 </div>
 
@@ -65,37 +62,32 @@ request.onupgradeneeded = e => {
 request.onsuccess = e => { db = e.target.result; init(); };
 function getStore(store,mode="readonly"){ return db.transaction(store,mode).objectStore(store); }
 
-/* Cargar rutina activa */
 function loadRoutine(){
   return new Promise(resolve=>{
     const tx = getStore("routines");
     const req = tx.get(activeRoutine);
-
-    req.onsuccess = ()=>{
+    req.onsuccess = () => {
       if(req.result && req.result.days){
         routine = req.result.days;
         resolve();
       } else {
-        // inicializar 7 días y guardar
         routine = {};
-        daysOfWeek.forEach(d=> routine[d]=[]);
+        daysOfWeek.forEach(d => routine[d] = []);
         const tx2 = getStore("routines","readwrite");
-        const putReq = tx2.put({name:activeRoutine,days:routine});
-        putReq.onsuccess = ()=> resolve();
-        putReq.onerror = ()=> resolve();
+        const putReq = tx2.put({name: activeRoutine, days: routine});
+        putReq.onsuccess = () => resolve();
+        putReq.onerror = () => resolve();
       }
     };
-    req.onerror = ()=> resolve();
+    req.onerror = () => resolve();
   });
 }
 
-/* Guardar rutina activa */
 function saveRoutine(){
   const tx = getStore("routines","readwrite");
-  tx.put({name:activeRoutine,days:routine});
+  tx.put({name:activeRoutine, days:routine});
 }
 
-/* Cargar ejercicios conocidos */
 function loadExercises(){
   return new Promise(resolve=>{
     const tx = getStore("exercises");
@@ -104,7 +96,6 @@ function loadExercises(){
   });
 }
 
-/* Agregar ejercicio a la lista global */
 function addExerciseToDB(name){
   if(!allExercises.includes(name)){
     allExercises.push(name);
@@ -113,14 +104,12 @@ function addExerciseToDB(name){
   }
 }
 
-/* UI */
 function init(){
   const daySelect = document.getElementById("daySelect");
-  daysOfWeek.forEach(d=> daySelect.innerHTML += `<option value="${d}">${d}</option>`);
+  daysOfWeek.forEach(d => daySelect.innerHTML += `<option value="${d}">${d}</option>`);
   Promise.all([loadRoutine(), loadExercises()]).then(renderWeek);
 }
 
-/* Autocomplete */
 function showSuggestions(){
   const query = document.getElementById("exerciseInput").value.toLowerCase();
   const box = document.getElementById("autocomplete");
@@ -136,7 +125,6 @@ function showSuggestions(){
   });
 }
 
-/* Agregar ejercicio */
 function addExercise(){
   const day = document.getElementById("daySelect").value;
   const name = document.getElementById("exerciseInput").value.trim();
@@ -145,7 +133,7 @@ function addExercise(){
   const weight = parseFloat(document.getElementById("weight").value) || 0;
   if(!name || sets<=0 || reps<=0) return alert("Completa nombre, sets y reps");
 
-  routine[day].push({name,sets,reps,weight});
+  routine[day].push({name, sets, reps, weight});
   addExerciseToDB(name);
   saveRoutine();
   renderWeek();
@@ -157,27 +145,24 @@ function addExercise(){
   document.getElementById("autocomplete").innerHTML="";
 }
 
-/* Editar */
 function editExercise(day,i){
   const ex = routine[day][i];
   const newName = prompt("Ejercicio:", ex.name); if(!newName) return;
   const newSets = parseInt(prompt("Sets:", ex.sets)); if(!newSets) return;
   const newReps = parseInt(prompt("Reps:", ex.reps)); if(!newReps) return;
   const newWeight = parseFloat(prompt("Peso:", ex.weight)) || 0;
-  routine[day][i] = {name:newName,sets:newSets,reps:newReps,weight:newWeight};
+  routine[day][i] = {name:newName, sets:newSets, reps:newReps, weight:newWeight};
   addExerciseToDB(newName);
   saveRoutine();
   renderWeek();
 }
 
-/* Borrar */
 function deleteExercise(day,i){
   routine[day].splice(i,1);
   saveRoutine();
   renderWeek();
 }
 
-/* Render */
 function renderWeek(){
   const weekDiv = document.getElementById("week");
   weekDiv.innerHTML="";
@@ -202,7 +187,6 @@ function renderWeek(){
   });
 }
 
-/* Exportar/Importar JSON por rutina */
 function exportJSON(){
   const data = JSON.stringify(routine,null,2);
   const blob = new Blob([data], {type:"application/json"});
@@ -212,6 +196,7 @@ function exportJSON(){
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
 function importJSON(event){
   const file = event.target.files[0];
   if(!file) return;
@@ -222,13 +207,14 @@ function importJSON(event){
       routine = data;
       saveRoutine();
       renderWeek();
-    }catch(err){ alert("Archivo inválido"); }
+    } catch(err) { alert("Archivo inválido"); }
   };
   reader.readAsText(file);
 }
 
-/* Service Worker */
-if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js"); }
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js");
+}
 </script>
 </body>
 </html>
