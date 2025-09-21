@@ -6,119 +6,104 @@
 <title>Dashboard</title>
 
 <link rel="manifest" href="manifest.json">
-
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Store Manager">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-
 <meta name="theme-color" content="#1e293b">
 <link rel="icon" href="icons/favicon-32x32.png" sizes="32x32">
 <link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
 
 <style>
-body{margin:0;font-family:system-ui,Arial;background:#0f1724;color:#fff;display:flex;flex-direction:column;min-height:100vh}
-header{background:#1e293b;padding:15px;text-align:center;font-size:18px;font-weight:bold}
-main{flex:1;padding:20px}
+body{margin:0;font-family:system-ui,Arial;background:#0f1724;color:#fff;min-height:100vh;overflow-x:hidden}
+header{background:#1e293b;padding:15px;text-align:center;font-size:18px;font-weight:bold;position:relative}
+#menuBtn{position:absolute;left:15px;top:15px;background:#6366f1;border:none;color:#fff;font-size:18px;padding:6px 10px;border-radius:6px;cursor:pointer}
+main{padding:20px}
+
+/* Sidebar */
+#sidebar{
+  position:fixed;top:0;left:-250px;width:250px;height:100%;background:#111827;
+  overflow-y:auto;transition:left 0.3s ease;padding-top:60px;z-index:1000
+}
+#sidebar.active{left:0}
+#sidebar ul{list-style:none;padding:0;margin:0}
+#sidebar ul li{padding:12px 20px;cursor:pointer}
+#sidebar ul li:hover{background:#374151}
+
+/* Overlay */
+#overlay{
+  display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.5);z-index:999
+}
+#overlay.active{display:block}
+
 .advice{background:#374151;padding:12px;border-radius:8px;margin-bottom:10px}
 .advice strong{color:#f87171}
-.section{margin-bottom:20px}
-.section h2{margin:0 0 10px;font-size:18px}
 </style>
 </head>
 <body>
-<header id="storeTitle">Dashboard</header>
+<header id="storeTitle">
+  <button id="menuBtn">☰</button>
+  Dashboard
+</header>
+
+<div id="sidebar">
+  <ul>
+    <li onclick="navigate('products.html')">Products</li>
+    <li onclick="navigate('categories.html')">Categories</li>
+    <li onclick="navigate('brands.html')">Brands</li>
+    <li onclick="navigate('subcategories.html')">Subcategories</li>
+    <li onclick="navigate('components.html')">Components</li>
+    <li onclick="navigate('sales.html')">Sales</li>
+    <li onclick="navigate('production.html')">Production</li>
+  </ul>
+</div>
+<div id="overlay"></div>
+
 <main>
   <div id="advisories"></div>
-
-  <div class="section">
-    <h2>Quick Links</h2>
-    <ul>
-      <li><a href="products.html">Products</a></li>
-      <li><a href="categories.html">Categories</a></li>
-      <li><a href="brands.html">Brands</a></li>
-      <li><a href="subcategories.html">Subcategories</a></li>
-      <li><a href="components.html">Components</a></li>
-      <li><a href="sales.html">Sales</a></li>
-      <li><a href="production.html">Production</a></li>
-    </ul>
-  </div>
 </main>
 
 <script>
-/* IndexedDB helpers (same as index.html) */
-const DB_NAME = 'StoresDB';
-const DB_VERSION = 1;
-let dbPromise;
+/* IndexedDB helpers */
+const DB_NAME='StoresDB',DB_VERSION=1;let dbPromise;
+function openDB(){if(dbPromise)return dbPromise;dbPromise=new Promise((res,rej)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains('stores'))db.createObjectStore('stores',{keyPath:'name'});};req.onsuccess=e=>res(e.target.result);req.onerror=e=>rej(e.target.error);});return dbPromise;}
+async function idbGet(store,key){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction(store,'readonly');const req=tx.objectStore(store).get(key);req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error);});}
 
-function openDB(){
-  if(dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve,reject)=>{
-    const req=indexedDB.open(DB_NAME,DB_VERSION);
-    req.onupgradeneeded=e=>{
-      const db=e.target.result;
-      if(!db.objectStoreNames.contains('stores')) db.createObjectStore('stores',{keyPath:'name'});
-    };
-    req.onsuccess=e=>resolve(e.target.result);
-    req.onerror=e=>reject(e.target.error);
-  });
-  return dbPromise;
-}
+/* Sidebar toggle */
+const sidebar=document.getElementById('sidebar');
+const overlay=document.getElementById('overlay');
+const menuBtn=document.getElementById('menuBtn');
+menuBtn.addEventListener('click',()=>{sidebar.classList.add('active');overlay.classList.add('active');menuBtn.style.display='none';});
+overlay.addEventListener('click',closeSidebar);
+function closeSidebar(){sidebar.classList.remove('active');overlay.classList.remove('active');menuBtn.style.display='block';}
+function navigate(url){closeSidebar();window.location.href=url;}
 
-async function idbGet(store,key){
-  const db = await openDB();
-  return new Promise((res,rej)=>{
-    const tx=db.transaction(store,'readonly');
-    const req=tx.objectStore(store).get(key);
-    req.onsuccess=()=>res(req.result);
-    req.onerror=()=>rej(req.error);
-  });
-}
-
-/* --- Dashboard logic --- */
-const storeName = localStorage.getItem('activeStore');
-const storeTitle = document.getElementById('storeTitle');
-const advisoriesDiv = document.getElementById('advisories');
+/* Dashboard data */
+const storeName=localStorage.getItem('activeStore');
+const storeTitle=document.getElementById('storeTitle');
+const advisoriesDiv=document.getElementById('advisories');
 
 if(!storeName){
-  storeTitle.textContent = "No store selected";
+  storeTitle.textContent="No store selected";
 }else{
-  storeTitle.textContent = "📊 Dashboard - " + storeName;
+  storeTitle.innerHTML=`<button id="menuBtn">☰</button> Dashboard - ${storeName}`;
   loadDashboard();
 }
 
 async function loadDashboard(){
-  const store = await idbGet('stores', storeName);
-  if(!store){
-    advisoriesDiv.innerHTML = `<div class="advice"><strong>Error:</strong> Store not found.</div>`;
-    return;
+  const store=await idbGet('stores',storeName);
+  if(!store){advisoriesDiv.innerHTML=`<div class="advice"><strong>Error:</strong> Store not found.</div>`;return;}
+  let advices=[];
+  if(store.products.length===0){advices.push("No products created yet.");}
+  else{
+    const lowStock=store.products.filter(p=>(p.stock||0)<=2);
+    if(lowStock.length>0)advices.push(`${lowStock.length} product(s) low on stock.`);
   }
-
-  let advices = [];
-
-  // Advisories for products
-  if(store.products.length === 0){
-    advices.push("No products created yet.");
-  } else {
-    const lowStock = store.products.filter(p=> (p.stock||0) <= 2);
-    if(lowStock.length > 0) advices.push(`${lowStock.length} product(s) low on stock.`);
-  }
-
-  // Advisories for categories/brands/subcategories
-  if(store.categories.length === 0){
-    advices.push("No categories defined yet.");
-  }
-  if(store.brands.length === 0){
-    advices.push("No brands defined yet.");
-  }
-  if(store.subcategories.length === 0){
-    advices.push("No subcategories defined yet.");
-  }
-
-  // Show advisories
-  advisoriesDiv.innerHTML = advices.map(a=>`
-    <div class="advice"><strong>Notice:</strong> ${a}</div>
-  `).join('');
+  if(store.categories.length===0)advices.push("No categories defined yet.");
+  if(store.brands.length===0)advices.push("No brands defined yet.");
+  if(store.subcategories.length===0)advices.push("No subcategories defined yet.");
+  advisoriesDiv.innerHTML=advices.map(a=>`<div class="advice"><strong>Notice:</strong> ${a}</div>`).join('');
 }
 </script>
 </body>
