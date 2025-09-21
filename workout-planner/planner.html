@@ -5,30 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Workout Planner</title>
 <style>
-  body { margin:0; font-family:system-ui,sans-serif; background:#0f1724; color:#f1f5f9; display:flex; justify-content:center; padding:20px; }
-  .app { width:100%; max-width:900px; background:#1e293b; padding:20px; border-radius:12px; }
-  h1 { text-align:center; margin-bottom:15px; }
-  .input-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px; position:relative; }
-  input, select, button { padding:8px; border-radius:8px; border:none; font-size:14px; }
-  button { cursor:pointer; font-weight:600; }
-  button.add-btn { background:#6366f1; color:#fff; }
-  button.export-btn { background:#14b8a6; color:#fff; }
-  button.import-btn { background:#f59e0b; color:#fff; }
-  .week { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:12px; }
-  .day { background:#334155; padding:12px; border-radius:8px; }
-  .day h3 { margin:0 0 8px; font-size:16px; border-bottom:1px solid #475569; padding-bottom:4px; }
-  .exercise { background:#475569; margin-bottom:6px; padding:6px; border-radius:6px; font-size:14px; }
-  .exercise span { display:block; }
-  .actions button { background:transparent; color:#f1f5f9; font-size:12px; margin-top:4px; margin-right:4px; cursor:pointer; }
-  .autocomplete-list { position:absolute; top:40px; left:0; right:0; background:#475569; border-radius:8px; max-height:150px; overflow:auto; z-index:10; }
-  .autocomplete-item { padding:6px; cursor:pointer; }
-  .autocomplete-item:hover { background:#6366f1; }
+body { margin:0; font-family:system-ui,sans-serif; background:#0f1724; color:#f1f5f9; display:flex; justify-content:center; padding:20px; }
+.app { width:100%; max-width:900px; background:#1e293b; padding:20px; border-radius:12px; }
+h1 { text-align:center; margin-bottom:15px; }
+.input-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px; position:relative; }
+input, select, button { padding:8px; border-radius:8px; border:none; font-size:14px; }
+button { cursor:pointer; font-weight:600; }
+button.add-btn { background:#6366f1; color:#fff; }
+button.export-btn { background:#14b8a6; color:#fff; }
+button.import-btn { background:#f59e0b; color:#fff; }
+.week { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:12px; }
+.day { background:#334155; padding:12px; border-radius:8px; }
+.day h3 { margin:0 0 8px; font-size:16px; border-bottom:1px solid #475569; padding-bottom:4px; }
+.exercise { background:#475569; margin-bottom:6px; padding:6px; border-radius:6px; font-size:14px; }
+.exercise span { display:block; }
+.actions button { background:transparent; color:#f1f5f9; font-size:12px; margin-top:4px; margin-right:4px; cursor:pointer; }
+.autocomplete-list { position:absolute; top:40px; left:0; right:0; background:#475569; border-radius:8px; max-height:150px; overflow:auto; z-index:10; }
+.autocomplete-item { padding:6px; cursor:pointer; }
+.autocomplete-item:hover { background:#6366f1; }
 </style>
 <link rel="manifest" href="manifest.json">
 </head>
 <body>
 <div class="app">
   <h1>💪 Workout Planner</h1>
+
   <div class="input-row">
     <select id="daySelect"></select>
     <div style="flex:1; position:relative;">
@@ -73,7 +74,10 @@ function loadRoutine(){
       if(req.result && req.result.days){
         routine = req.result.days;
       } else {
-        daysOfWeek.forEach(d=>routine[d]=[]);
+        // inicializar días
+        routine = {};
+        daysOfWeek.forEach(d=> routine[d]=[]);
+        saveRoutine(); // guardar inmediatamente la nueva rutina
       }
       resolve();
     };
@@ -220,7 +224,6 @@ function importJSON(event){
 
 /* Service Worker */
 if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js"); }
-
 </script>
 </body>
 </html>
