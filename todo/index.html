@@ -102,7 +102,7 @@ async function loadCards(){
     div.innerHTML=`
       <h2>${l.name}</h2>
       <canvas width="50" height="50"></canvas>
-      <div class="progress-text">${completed}/${total} completadas</div>
+      <div class="progress-text">${completed}/${total} completed</div>
       <div class="badge">${total-completed}</div>
     `;
     drawCircle(div.querySelector('canvas'), perc);
@@ -160,9 +160,9 @@ function drawCircle(canvas, progress){
 
 async function createList(){
   const name = input.value.trim();
-  if(!name) return alert('Escribí un nombre para la lista');
+  if(!name) return alert('Insert a name for the list');
   const existing = await idbGet('lists',name);
-  if(existing){ alert('Ya existe'); return; }
+  if(existing){ alert('Already exist'); return; }
   await idbPut('lists',{ name, items:[] });
   input.value='';
   loadCards();
