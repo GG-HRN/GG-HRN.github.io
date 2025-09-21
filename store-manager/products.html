@@ -118,7 +118,7 @@ function fillSelects(){
 }
 prodCategory.addEventListener('change',()=>{
   const cat=prodCategory.value;
-  const filteredSubs=subcategories.filter(s=>s.category===cat).map(s=>s.name);
+  const filteredSubs=subcategories.filter(s=>s.categoryName===cat).map(s=>s.name);
   prodSubcategory.innerHTML='';
   filteredSubs.forEach(name=>{
     const o=document.createElement('option'); o.value=o.textContent=name; prodSubcategory.appendChild(o);
