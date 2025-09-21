@@ -66,20 +66,28 @@ function loadRoutine(){
   return new Promise(resolve=>{
     const tx = getStore("routines");
     const req = tx.get(activeRoutine);
-    req.onsuccess = () => {
+    req.onsuccess = ()=>{
+      // Si existe, usamos los días guardados
       if(req.result && req.result.days){
         routine = req.result.days;
-        resolve();
       } else {
+        // Si no existe, creamos los 7 días inmediatamente en memoria
         routine = {};
-        daysOfWeek.forEach(d => routine[d] = []);
+        daysOfWeek.forEach(d=> routine[d]=[]);
+        // Guardamos en IndexedDB (no bloquea render)
         const tx2 = getStore("routines","readwrite");
-        const putReq = tx2.put({name: activeRoutine, days: routine});
-        putReq.onsuccess = () => resolve();
-        putReq.onerror = () => resolve();
+        tx2.put({name:activeRoutine, days: routine});
       }
+      // Renderizamos de inmediato
+      renderWeek();
+      resolve();
     };
-    req.onerror = () => resolve();
+    req.onerror = ()=>{
+      routine = {};
+      daysOfWeek.forEach(d=> routine[d]=[]);
+      renderWeek();
+      resolve();
+    };
   });
 }
 
@@ -106,8 +114,8 @@ function addExerciseToDB(name){
 
 function init(){
   const daySelect = document.getElementById("daySelect");
-  daysOfWeek.forEach(d => daySelect.innerHTML += `<option value="${d}">${d}</option>`);
-  Promise.all([loadRoutine(), loadExercises()]).then(renderWeek);
+  daysOfWeek.forEach(d=> daySelect.innerHTML += `<option value="${d}">${d}</option>`);
+  Promise.all([loadRoutine(), loadExercises()]);
 }
 
 function showSuggestions(){
@@ -132,12 +140,10 @@ function addExercise(){
   const reps = parseInt(document.getElementById("reps").value) || 0;
   const weight = parseFloat(document.getElementById("weight").value) || 0;
   if(!name || sets<=0 || reps<=0) return alert("Completa nombre, sets y reps");
-
   routine[day].push({name, sets, reps, weight});
   addExerciseToDB(name);
   saveRoutine();
   renderWeek();
-
   document.getElementById("exerciseInput").value="";
   document.getElementById("sets").value="";
   document.getElementById("reps").value="";
@@ -151,7 +157,7 @@ function editExercise(day,i){
   const newSets = parseInt(prompt("Sets:", ex.sets)); if(!newSets) return;
   const newReps = parseInt(prompt("Reps:", ex.reps)); if(!newReps) return;
   const newWeight = parseFloat(prompt("Peso:", ex.weight)) || 0;
-  routine[day][i] = {name:newName, sets:newSets, reps:newReps, weight:newWeight};
+  routine[day][i]={name:newName, sets:newSets, reps:newReps, weight:newWeight};
   addExerciseToDB(newName);
   saveRoutine();
   renderWeek();
@@ -203,18 +209,15 @@ function importJSON(event){
   const reader = new FileReader();
   reader.onload = e=>{
     try{
-      const data = JSON.parse(e.target.result);
-      routine = data;
+      routine=JSON.parse(e.target.result);
       saveRoutine();
       renderWeek();
-    } catch(err) { alert("Archivo inválido"); }
+    }catch(err){ alert("Archivo inválido"); }
   };
   reader.readAsText(file);
 }
 
-if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js");
-}
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js"); }
 </script>
 </body>
 </html>
