@@ -141,8 +141,19 @@ function loadStore(){
 
 // --- Fill Selects ---
 function fillSelects(){
-  function fill(sel,arr){ sel.innerHTML=''; arr.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); }
-  fill(prodBrand,brands); fill(prodCategory,categories); fill(prodSubcategory,subcategories);
+  function fill(sel, arr){
+    sel.innerHTML='';
+    arr.forEach(v=>{
+      const o = document.createElement('option');
+      // Ensure we use a string for value and textContent
+      o.value = typeof v === 'object' ? v.name : v;
+      o.textContent = typeof v === 'object' ? v.name : v;
+      sel.appendChild(o);
+    });
+  }
+  fill(prodBrand, brands);
+  fill(prodCategory, categories);
+  fill(prodSubcategory, subcategories);
 }
 
 // --- Save back store ---
