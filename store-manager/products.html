@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Products</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Products">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#1e293b">
+<link rel="icon" href="icons/favicon-32x32.png" sizes="32x32">
+<link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
+
+<style>
+body{margin:0;font-family:sans-serif;background:#0f1724;color:#fff;}
+header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#0b1220;color:#fff;position:sticky;top:0;z-index:20;}
+#backBtn{background:#6366f1;border:0;color:#fff;padding:6px 10px;border-radius:6px;font-weight:700;cursor:pointer;}
+#headerTitle{flex:1;text-align:center;font-size:16px;font-weight:700}
+
+main{padding:16px}
+
+form{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+input,select,textarea,button{padding:10px;font-size:15px;border-radius:6px;border:none;box-sizing:border-box}
+input,textarea,select{width:100%}
+textarea{resize:vertical;min-height:60px}
+button{cursor:pointer;font-weight:700}
+button.add{background:#10b981;color:#fff}
+button.update{background:#f59e0b;color:#fff}
+button.delete{background:#ef4444;color:#fff}
+
+#prodSearch{margin-bottom:12px;padding:8px;border-radius:6px;border:none;width:100%;box-sizing:border-box}
+
+.prodCard{background:#1e293b;padding:12px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.prodInfo{flex:1}
+.prodName{font-weight:bold;display:block;margin-bottom:4px}
+.prodDetail{font-size:12px;color:#aaa}
+.actions button{margin-left:6px}
+
+.pagination{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.pagination button{padding:6px 10px;border:none;border-radius:6px;background:#6366f1;color:#fff;cursor:pointer;font-weight:700}
+.pagination button.active{background:#10b981}
+
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <button id="backBtn">←</button>
+  <div id="headerTitle">Products</div>
+</header>
+
+<main>
+<form id="prodForm">
+  <input type="text" id="prodName" placeholder="Product Name" required/>
+  <select id="prodCategory" required></select>
+  <select id="prodSubcategory" required></select>
+  <select id="prodBrand" required></select>
+  <input type="number" id="prodPrice" placeholder="Price" step="0.01" required/>
+  <input type="number" id="prodCost" placeholder="Cost" step="0.01" required/>
+  
+  <label><input type="checkbox" id="chkWarranty"/> Warranty</label>
+  <div id="warrantyFields" class="hidden">
+    <input type="text" id="prodSerial" placeholder="Serial Number"/>
+    <input type="date" id="prodWarrantyDate"/>
+  </div>
+
+  <label><input type="checkbox" id="chkExpiration"/> Expiration</label>
+  <div id="expirationFields" class="hidden">
+    <input type="date" id="prodExpirationDate"/>
+    <input type="text" id="prodLot" placeholder="Lot Number"/>
+    <input type="number" id="prodQuantity" placeholder="Quantity"/>
+  </div>
+
+  <button type="submit" class="add">Add Product</button>
+</form>
+
+<input type="text" id="prodSearch" placeholder="Search products...">
+
+<div id="prodList"></div>
+<div class="pagination" id="pagination"></div>
+</main>
+
+<script>
+/* IndexedDB helpers */
+const DB_NAME='StoresDB',DB_VERSION=1;let dbPromise;
+function openDB(){
+  if(dbPromise) return dbPromise;
+  dbPromise=new Promise((res,rej)=>{
+    const req=indexedDB.open(DB_NAME,DB_VERSION);
+    req.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains('stores'))
+        db.createObjectStore('stores',{keyPath:'name'});
+    };
+    req.onsuccess=e=>res(e.target.result);
+    req.onerror=e=>rej(e.target.error);
+  });
+  return dbPromise;
+}
+async function idbGet(store,key){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readonly');
+    const req=tx.objectStore(store).get(key);
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+async function idbPut(store,value){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readwrite');
+    tx.objectStore(store).put(value);
+    tx.oncomplete=()=>res();
+    tx.onerror=()=>rej(tx.error);
+  });
+}
+
+/* Logic */
+const storeName=localStorage.getItem('activeStore');
+let currentStore;
+const prodForm=document.getElementById('prodForm');
+const prodName=document.getElementById('prodName');
+const prodCategory=document.getElementById('prodCategory');
+const prodSubcategory=document.getElementById('prodSubcategory');
+const prodBrand=document.getElementById('prodBrand');
+const prodPrice=document.getElementById('prodPrice');
+const prodCost=document.getElementById('prodCost');
+const chkWarranty=document.getElementById('chkWarranty');
+const chkExpiration=document.getElementById('chkExpiration');
+const warrantyFields=document.getElementById('warrantyFields');
+const expirationFields=document.getElementById('expirationFields');
+const prodSerial=document.getElementById('prodSerial');
+const prodWarrantyDate=document.getElementById('prodWarrantyDate');
+const prodExpirationDate=document.getElementById('prodExpirationDate');
+const prodLot=document.getElementById('prodLot');
+const prodQuantity=document.getElementById('prodQuantity');
+const prodList=document.getElementById('prodList');
+const prodSearch=document.getElementById('prodSearch');
+const paginationDiv=document.getElementById('pagination');
+const backBtn=document.getElementById('backBtn');
+
+backBtn.addEventListener('click',()=>window.location.href="dashboard.html");
+
+let filteredProducts=[];
+let currentPage=1;
+const pageSize=5;
+let sortDir='asc';
+
+/* Load store & populate dropdowns */
+async function loadStore(){
+  if(!storeName){alert("No active store");return;}
+  currentStore=await idbGet('stores',storeName);
+  if(!currentStore.products) currentStore.products=[];
+  if(!currentStore.categories) currentStore.categories=[];
+  if(!currentStore.subcategories) currentStore.subcategories=[];
+  if(!currentStore.brands) currentStore.brands=[];
+  populateSelect(prodCategory,currentStore.categories,"Select Category");
+  populateSelect(prodBrand,currentStore.brands,"Select Brand");
+  prodCategory.addEventListener("change",()=>populateSelect(prodSubcategory,currentStore.subcategories.filter(s=>s.categoryName===prodCategory.value),"Select Subcategory"));
+  applyFilters();
+}
+function populateSelect(select,arr,placeholder){
+  select.innerHTML=`<option value="">${placeholder}</option>`;
+  arr.forEach(a=>{
+    select.appendChild(Object.assign(document.createElement("option"),{value:a.name||a,textContent:a.name||a}));
+  });
+}
+
+/* Checkbox logic */
+chkWarranty.addEventListener("change",()=>warrantyFields.classList.toggle("hidden",!chkWarranty.checked));
+chkExpiration.addEventListener("change",()=>expirationFields.classList.toggle("hidden",!chkExpiration.checked));
+
+/* Filters & pagination */
+function applyFilters(){
+  const filter=prodSearch.value.trim().toLowerCase();
+  filteredProducts=currentStore.products.filter(p=>
+    p.name.toLowerCase().includes(filter) ||
+    p.category.toLowerCase().includes(filter) ||
+    (p.subcategory||"").toLowerCase().includes(filter) ||
+    p.brand.toLowerCase().includes(filter)
+  );
+  sortProducts();
+  currentPage=1;
+  renderProducts();
+}
+function sortProducts(){
+  filteredProducts.sort((a,b)=>{
+    if(a.name.toLowerCase()<b.name.toLowerCase()) return sortDir==='asc'?-1:1;
+    if(a.name.toLowerCase()>b.name.toLowerCase()) return sortDir==='asc'?1:-1;
+    return 0;
+  });
+}
+function renderProducts(){
+  prodList.innerHTML="";
+  if(filteredProducts.length===0){prodList.innerHTML="<p>No products found.</p>";paginationDiv.innerHTML="";return;}
+  const start=(currentPage-1)*pageSize;
+  const pageProducts=filteredProducts.slice(start,start+pageSize);
+  pageProducts.forEach(p=>{
+    const div=document.createElement("div");
+    div.className="prodCard";
+    div.innerHTML=`
+      <div class="prodInfo">
+        <span class="prodName">${p.name}</span>
+        <span class="prodDetail">Category: ${p.category}, Subcategory: ${p.subcategory||"-"}, Brand: ${p.brand}</span>
+        <span class="prodDetail">Price: ${p.price}, Cost: ${p.cost}, Qty: ${p.quantity}</span>
+        <span class="prodDetail">${p.warranty?"Warranty (Serial:"+p.serial+" / "+p.warrantyDate+")":""}</span>
+        <span class="prodDetail">${p.expiration?"Expiration:"+p.expirationDate+" Lot:"+p.lotNumber:""}</span>
+      </div>
+      <span class="actions">
+        <button class="update">Edit</button>
+        <button class="delete">Delete</button>
+      </span>
+    `;
+    div.querySelector(".update").addEventListener("click",()=>editProduct(currentStore.products.indexOf(p)));
+    div.querySelector(".delete").addEventListener("click",()=>deleteProduct(currentStore.products.indexOf(p)));
+    prodList.appendChild(div);
+  });
+  renderPagination();
+}
+function renderPagination(){
+  paginationDiv.innerHTML="";
+  const totalPages=Math.ceil(filteredProducts.length/pageSize);
+  for(let i=1;i<=totalPages;i++){
+    const btn=document.createElement("button");
+    btn.textContent=i;
+    if(i===currentPage) btn.classList.add("active");
+    btn.addEventListener("click",()=>{currentPage=i;renderProducts();});
+    paginationDiv.appendChild(btn);
+  }
+}
+
+/* Add / edit / delete */
+prodSearch.addEventListener("input",applyFilters);
+
+prodForm.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const pName=prodName.value.trim(),pCat=prodCategory.value,pSub=prodSubcategory.value,pBrand=prodBrand.value;
+  const price=parseFloat(prodPrice.value),cost=parseFloat(prodCost.value);
+  if(!pName||!pCat||!pBrand||isNaN(price)||isNaN(cost)){alert("Please fill required fields");return;}
+  
+  const warranty=chkWarranty.checked,serial=prodSerial.value.trim(),warrantyDate=prodWarrantyDate.value;
+  const expiration=chkExpiration.checked,expDate=prodExpirationDate.value,lotNumber=prodLot.value.trim();
+  let quantity=parseInt(prodQuantity.value)||1;
+  if(warranty) quantity=1;
+
+  // Duplication rules
+  let existingIndex=-1;
+  if(warranty){
+    existingIndex=currentStore.products.findIndex(p=>p.serial===serial);
+    if(existingIndex>=0){alert("Serial already exists");return;}
+  } else if(expiration && lotNumber){
+    existingIndex=currentStore.products.findIndex(p=>p.name===pName && p.lotNumber===lotNumber);
+    if(existingIndex>=0){currentStore.products[existingIndex].quantity+=quantity;await idbPut('stores',currentStore);clearForm();applyFilters();return;}
+  } else {
+    existingIndex=currentStore.products.findIndex(p=>p.name===pName && !p.warranty && !p.lot);
+    if(existingIndex>=0){currentStore.products[existingIndex].quantity+=quantity;await idbPut('stores',currentStore);clearForm();applyFilters();return;}
+  }
+
+  currentStore.products.push({name:pName,category:pCat,subcategory:pSub,brand:pBrand,price,cost,quantity,warranty,serial,warrantyDate,expiration,expirationDate:expDate,lot:expiration,lotNumber});
+  await idbPut('stores',currentStore);
+  clearForm();applyFilters();
+});
+
+function clearForm(){
+  prodName.value="";prodCategory.value="";prodSubcategory.innerHTML="";prodBrand.value="";prodPrice.value="";prodCost.value="";
+  chkWarranty.checked=false;chkExpiration.checked=false;
+  warrantyFields.classList.add("hidden");expirationFields.classList.add("hidden");
+  prodSerial.value="";prodWarrantyDate.value="";prodExpirationDate.value="";prodLot.value="";prodQuantity.value="";
+}
+
+async function editProduct(index){
+  const p=currentStore.products[index];
+  const newName=prompt("Product Name:",p.name);if(!newName) return;
+  const newCat=prompt("Category:",p.category);if(!newCat) return;
+  const newSub=prompt("Subcategory:",p.subcategory||"")||"";
+  const newBrand=prompt("Brand:",p.brand);if(!newBrand) return;
+  const newPrice=parseFloat(prompt("Price:",p.price))||0;
+  const newCost=parseFloat(prompt("Cost:",p.cost))||0;
+  const newWarranty=confirm("Warranty?");let newSerial="",newWarrantyDate="";
+  if(newWarranty){newSerial=prompt("Serial:",p.serial||"")||"";newWarrantyDate=prompt("Warranty Date:",p.warrantyDate||"")||"";}
+  const newExpiration=confirm("Expiration?");let newExpDate="",newLot="";
+  if(newExpiration){newExpDate=prompt("Expiration Date:",p.expirationDate||"")||"";newLot=prompt("Lot Number:",p.lotNumber||"")||"";}
+  let newQty=parseInt(prompt("Quantity:",p.quantity))||1;if(newWarranty)newQty=1;
+
+  // Duplication checks
+  if(newWarranty && currentStore.products.some((prod,i)=>i!==index && prod.serial===newSerial)){alert("Serial exists!");return;}
+  if(newExpiration && newLot && currentStore.products.some((prod,i)=>i!==index && prod.name===newName && prod.lotNumber===newLot)){alert("Duplicate lot exists!");return;}
+
+  currentStore.products[index]={name:newName,category:newCat,subcategory:newSub,brand:newBrand,price:newPrice,cost:newCost,quantity:newQty,warranty:newWarranty,serial:newSerial,warrantyDate:newWarrantyDate,expiration:newExpiration,expirationDate:newExpDate,lot:newExpiration,lotNumber:newLot};
+  await idbPut('stores',currentStore);applyFilters();
+}
+
+async function deleteProduct(index){
+  if(!confirm("Delete this product?")) return;
+  currentStore.products.splice(index,1);
+  await idbPut('stores',currentStore);applyFilters();
+}
+
+/* Init */
+loadStore();
+</script>
+</body>
+</html>
