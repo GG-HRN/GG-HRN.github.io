@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stock Manager - Products</title>
+<title>Store Manager - Products</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1e293b">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -26,7 +26,7 @@ label { display:block; margin-top:0.5rem; }
 </head>
 <body>
 
-<header><h1>Stock Manager - Products</h1></header>
+<header><h1>Store Manager - Products</h1></header>
 
 <div class="container">
   <h2>Add / Edit Product</h2>
@@ -81,7 +81,7 @@ label { display:block; margin-top:0.5rem; }
 <script>
 // ---------------- IndexedDB Setup ----------------
 let db;
-const request = indexedDB.open('stockManagerDB',1);
+const request = indexedDB.open('storeManagerDB',1);
 request.onupgradeneeded = e=>{
   db = e.target.result;
   if(!db.objectStoreNames.contains('products')) db.createObjectStore('products',{keyPath:'id',autoIncrement:true});
@@ -127,7 +127,7 @@ chkExpiration.addEventListener('change',()=>{
   if(chkExpiration.checked){ chkWarranty.checked=false; warrantyFields.classList.add('hidden'); }
 });
 
-// ---------------- Load all options and products ----------------
+// ---------------- Load options ----------------
 function loadAll(){
   loadOptions('brands',prodBrand);
   loadOptions('categories',prodCategory);
@@ -149,7 +149,7 @@ function loadOptions(storeName,selectElem){
   };
 }
 
-// ---------------- Ensure option exists in table ----------------
+// ---------------- Ensure option exists ----------------
 function ensureOptionExists(storeName,value,callback){
   if(!value) { callback(); return; }
   const tx = db.transaction(storeName,'readwrite');
@@ -209,7 +209,6 @@ prodForm.onsubmit = e=>{
     return alert('Fill all required fields');
   }
 
-  // ---------------- Insert new options if missing ----------------
   ensureOptionExists('brands', newProd.brand, ()=>{
     ensureOptionExists('categories', newProd.category, ()=>{
       ensureOptionExists('subcategories', newProd.subcategory, ()=>{
