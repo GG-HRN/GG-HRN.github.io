@@ -3,71 +3,50 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Store Dashboard</title>
+<title>Dashboard</title>
 
-<!-- PWA manifest -->
 <link rel="manifest" href="manifest.json">
 
-<!-- iOS support -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Store Dashboard">
+<meta name="apple-mobile-web-app-title" content="Store Manager">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
-<!-- theme color -->
 <meta name="theme-color" content="#1e293b">
-
-<!-- favicons -->
 <link rel="icon" href="icons/favicon-32x32.png" sizes="32x32">
 <link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
 
 <style>
-body{margin:0;font-family:system-ui,Arial;background:#0f1724;color:#fff;display:flex;overflow-x:hidden;}
-header{background:#1e293b;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}
-header h1{margin:0;font-size:18px}
-#sidebar{position:fixed;top:0;left:-250px;width:250px;height:100%;background:#111827;transition:0.3s;padding-top:60px;z-index:1000;}
-#sidebar ul{list-style:none;padding:0;margin:0;}
-#sidebar ul li{padding:16px;color:#fff;cursor:pointer;transition:0.2s;}
-#sidebar ul li:hover{background:#374151;}
-#sidebarOverlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);display:none;z-index:900;}
-#sidebarToggle{background:#6366f1;color:#fff;border:none;padding:10px 14px;border-radius:8px;font-weight:700;cursor:pointer;}
-#main{flex:1;padding:16px;margin-left:0;transition:margin-left 0.3s;}
-section{display:none;}
-section.active{display:block;}
-.product-card{background:#1e293b;padding:12px;border-radius:12px;margin-bottom:12px;}
-.product-card h3{margin:0 0 4px 0;font-size:16px;}
-.product-card p{font-size:12px;color:#cbd5e1;}
+body{margin:0;font-family:system-ui,Arial;background:#0f1724;color:#fff;display:flex;flex-direction:column;min-height:100vh}
+header{background:#1e293b;padding:15px;text-align:center;font-size:18px;font-weight:bold}
+main{flex:1;padding:20px}
+.advice{background:#374151;padding:12px;border-radius:8px;margin-bottom:10px}
+.advice strong{color:#f87171}
+.section{margin-bottom:20px}
+.section h2{margin:0 0 10px;font-size:18px}
 </style>
 </head>
 <body>
+<header id="storeTitle">Dashboard</header>
+<main>
+  <div id="advisories"></div>
 
-<header>
-  <button id="sidebarToggle">☰ Menu</button>
-  <h1 id="storeName">Store Dashboard</h1>
-</header>
-
-<div id="sidebar">
-  <ul>
-    <li data-section="products">Products</li>
-    <li data-section="sales">Sales</li>
-    <li data-section="reports">Reports</li>
-    <li data-section="settings">Settings</li>
-  </ul>
-</div>
-<div id="sidebarOverlay"></div>
-
-<div id="main">
-  <section id="products" class="active">
-    <h2>Products Overview</h2>
-    <div id="productList"></div>
-  </section>
-  <section id="sales"><h2>Sales</h2></section>
-  <section id="reports"><h2>Reports</h2></section>
-  <section id="settings"><h2>Settings</h2></section>
-</div>
+  <div class="section">
+    <h2>Quick Links</h2>
+    <ul>
+      <li><a href="products.html">Products</a></li>
+      <li><a href="categories.html">Categories</a></li>
+      <li><a href="brands.html">Brands</a></li>
+      <li><a href="subcategories.html">Subcategories</a></li>
+      <li><a href="components.html">Components</a></li>
+      <li><a href="sales.html">Sales</a></li>
+      <li><a href="production.html">Production</a></li>
+    </ul>
+  </div>
+</main>
 
 <script>
-/* --- IndexedDB helper --- */
+/* IndexedDB helpers (same as index.html) */
 const DB_NAME = 'StoresDB';
 const DB_VERSION = 1;
 let dbPromise;
@@ -96,100 +75,50 @@ async function idbGet(store,key){
   });
 }
 
-/* --- Sidebar logic --- */
-const sidebar = document.getElementById('sidebar');
-const overlay = document.getElementById('sidebarOverlay');
-const toggleBtn = document.getElementById('sidebarToggle');
-const sections = document.querySelectorAll('section');
+/* --- Dashboard logic --- */
+const storeName = localStorage.getItem('activeStore');
+const storeTitle = document.getElementById('storeTitle');
+const advisoriesDiv = document.getElementById('advisories');
 
-toggleBtn.addEventListener('click',()=>{
-  sidebar.style.left='0';
-  overlay.style.display='block';
-  toggleBtn.style.display='none';
-});
-
-function closeSidebar(){
-  sidebar.style.left='-250px';
-  overlay.style.display='none';
-  toggleBtn.style.display='block';
+if(!storeName){
+  storeTitle.textContent = "No store selected";
+}else{
+  storeTitle.textContent = "📊 Dashboard - " + storeName;
+  loadDashboard();
 }
-overlay.addEventListener('click', closeSidebar);
 
-document.querySelectorAll('#sidebar ul li').forEach(li=>{
-  li.addEventListener('click', ()=>{
-    const sectionId = li.getAttribute('data-section');
-    sections.forEach(s=>s.classList.remove('active'));
-    document.getElementById(sectionId).classList.add('active');
-    closeSidebar();
-  });
-});
-
-/* --- Advisory system --- */
-async function renderProductsAdvisory(){
-  const productList = document.getElementById('productList');
-  productList.innerHTML='';
-
-  const activeStore = localStorage.getItem('activeStore');
-  if(!activeStore){ productList.textContent = 'No active store selected.'; return; }
-
-  const storeData = await idbGet('stores', activeStore);
-  const products = storeData?.products || [];
-
-  if(products.length === 0){
-    const div = document.createElement('div');
-    div.textContent='No products available.';
-    div.style.color='#cbd5e1';
-    div.style.textAlign='center';
-    div.style.padding='20px';
-    productList.appendChild(div);
+async function loadDashboard(){
+  const store = await idbGet('stores', storeName);
+  if(!store){
+    advisoriesDiv.innerHTML = `<div class="advice"><strong>Error:</strong> Store not found.</div>`;
     return;
   }
 
-  let advisories = [];
-  const today = new Date();
+  let advices = [];
 
-  products.forEach(p=>{
-    const totalStock = p.batches?.reduce((sum,b)=>sum+b.quantity,0) || 0;
-    if(totalStock <= (p.minStock || 0)) advisories.push(`${p.name} is low on stock (${totalStock})`);
-    p.batches?.forEach(b=>{
-      if(b.expiration && new Date(b.expiration) < today)
-        advisories.push(`${p.name} batch ${b.lot || b.serial} has expired`);
-      if(b.warranty && new Date(b.warranty) < today)
-        advisories.push(`${p.name} batch ${b.lot || b.serial} warranty expired`);
-    });
-  });
-
-  if(advisories.length === 0){
-    const div = document.createElement('div');
-    div.textContent='All products are OK.';
-    div.style.color='#a3fca3';
-    div.style.textAlign='center';
-    div.style.padding='20px';
-    productList.appendChild(div);
+  // Advisories for products
+  if(store.products.length === 0){
+    advices.push("No products created yet.");
   } else {
-    advisories.forEach(msg=>{
-      const div = document.createElement('div');
-      div.className='product-card';
-      div.textContent=msg;
-      productList.appendChild(div);
-    });
+    const lowStock = store.products.filter(p=> (p.stock||0) <= 2);
+    if(lowStock.length > 0) advices.push(`${lowStock.length} product(s) low on stock.`);
   }
-}
 
-// Update dashboard header
-function setStoreHeader(){
-  const activeStore = localStorage.getItem('activeStore');
-  if(activeStore) document.getElementById('storeName').textContent = activeStore;
-}
+  // Advisories for categories/brands/subcategories
+  if(store.categories.length === 0){
+    advices.push("No categories defined yet.");
+  }
+  if(store.brands.length === 0){
+    advices.push("No brands defined yet.");
+  }
+  if(store.subcategories.length === 0){
+    advices.push("No subcategories defined yet.");
+  }
 
-setStoreHeader();
-renderProductsAdvisory();
-
-/* --- Service Worker --- */
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js',{scope:'./'})
-    .then(()=>console.log('SW registered'))
-    .catch(e=>console.warn('SW failed',e));
+  // Show advisories
+  advisoriesDiv.innerHTML = advices.map(a=>`
+    <div class="advice"><strong>Notice:</strong> ${a}</div>
+  `).join('');
 }
 </script>
 </body>
