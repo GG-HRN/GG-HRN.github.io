@@ -36,12 +36,12 @@
       <input id="sets" type="number" placeholder="Sets" style="width:66px">
       <input id="reps" type="number" placeholder="Reps" style="width:66px">
       <input id="weight" type="number" placeholder="Kg" style="width:66px">
-      <button class="add-btn" id="addBtn">Agregar</button>
+      <button class="add-btn" id="addBtn">Add</button>
     </div>
 
     <div style="display:flex;gap:10px;margin-bottom:12px">
-      <button onclick="exportJSON()" style="background:#14b8a6;color:#fff;padding:8px;border-radius:8px">Exportar JSON</button>
-      <button onclick="document.getElementById('fileInput').click()" style="background:#f59e0b;color:#fff;padding:8px;border-radius:8px">Importar JSON</button>
+      <button onclick="exportJSON()" style="background:#14b8a6;color:#fff;padding:8px;border-radius:8px">Export JSON</button>
+      <button onclick="document.getElementById('fileInput').click()" style="background:#f59e0b;color:#fff;padding:8px;border-radius:8px">Import JSON</button>
       <input id="fileInput" type="file" accept="application/json" style="display:none" onchange="importJSON(event)">
     </div>
 
