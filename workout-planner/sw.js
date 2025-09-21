@@ -1,13 +1,15 @@
 const CACHE_NAME = "workout-planner-v1";
 const ASSETS = [
-  "./",               // raíz
+  "./",
   "./index.html",
   "./manifest.json",
-  "./sw.js"
-  // si agregás más archivos (iconos, css, imágenes), ponelos acá
+  "./sw.js",
+  "./icon-192.png",
+  "./icon-512.png"
+  // agregar aquí cualquier CSS, JS, imágenes adicionales de la app
 ];
 
-// Install → cachea los recursos
+// Install → cachea todos los assets
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
@@ -15,7 +17,7 @@ self.addEventListener("install", event => {
   self.skipWaiting();
 });
 
-// Activate → limpia versiones viejas
+// Activate → limpia caches viejos
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -25,7 +27,7 @@ self.addEventListener("activate", event => {
   self.clients.claim();
 });
 
-// Fetch → responde desde cache primero, luego red
+// Fetch → responde desde cache primero
 self.addEventListener("fetch", event => {
   event.respondWith(
     caches.match(event.request).then(resp => {
@@ -35,7 +37,7 @@ self.addEventListener("fetch", event => {
           return fetchResp;
         });
       }).catch(() => {
-        // fallback opcional si no hay conexión
+        // fallback a index.html si es navegación y no hay conexión
         if (event.request.mode === "navigate") {
           return caches.match("./index.html");
         }
