@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Subcategories</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Subcategories">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#1e293b">
+<link rel="icon" href="icons/favicon-32x32.png" sizes="32x32">
+<link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
+
+<style>
+  body{margin:0;font-family:sans-serif;background:#0f1724;color:#fff;}
+  header{
+    display:flex;align-items:center;gap:12px;
+    padding:12px 16px;background:#0b1220;color:#fff;
+    position:sticky;top:0;z-index:20;
+  }
+  #backBtn{
+    background:#6366f1;border:0;color:#fff;
+    padding:6px 10px;border-radius:6px;font-weight:700;cursor:pointer;
+  }
+  #headerTitle{flex:1;text-align:center;font-size:16px;font-weight:700}
+
+  main{padding:16px}
+
+  form{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+  input,select,textarea,button{padding:10px;font-size:15px;border-radius:6px;border:none;box-sizing:border-box}
+  input,textarea,select{width:100%}
+  textarea{resize:vertical;min-height:60px}
+  button{cursor:pointer;font-weight:700}
+  button.add{background:#10b981;color:#fff}
+  button.update{background:#f59e0b;color:#fff}
+  button.delete{background:#ef4444;color:#fff}
+
+  #subSearch{margin-bottom:12px;padding:8px;border-radius:6px;border:none;width:100%;box-sizing:border-box}
+
+  .subCard{
+    background:#1e293b;padding:12px;border-radius:8px;margin-bottom:10px;
+    display:flex;justify-content:space-between;align-items:center
+  }
+  .subInfo{flex:1}
+  .subName{font-weight:bold;display:block;margin-bottom:4px}
+  .subCategory{font-size:12px;color:#aaa}
+  .actions button{margin-left:6px}
+
+  .pagination{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+  .pagination button{
+    padding:6px 10px;border:none;border-radius:6px;background:#6366f1;color:#fff;cursor:pointer;font-weight:700
+  }
+  .pagination button.active{background:#10b981}
+</style>
+</head>
+<body>
+<header>
+  <button id="backBtn">←</button>
+  <div id="headerTitle">Subcategories</div>
+</header>
+
+<main>
+  <form id="subForm">
+    <input type="text" id="subName" placeholder="Enter subcategory name"/>
+    <textarea id="subDesc" placeholder="Optional description"></textarea>
+    <select id="categorySelect"></select>
+    <button type="submit" class="add">Add Subcategory</button>
+  </form>
+
+  <input type="text" id="subSearch" placeholder="Search subcategories...">
+
+  <div id="subList"></div>
+  <div class="pagination" id="pagination"></div>
+</main>
+
+<script>
+/* ---- IndexedDB helpers ---- */
+const DB_NAME='StoresDB',DB_VERSION=1;let dbPromise;
+function openDB(){
+  if(dbPromise) return dbPromise;
+  dbPromise=new Promise((res,rej)=>{
+    const req=indexedDB.open(DB_NAME,DB_VERSION);
+    req.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains('stores'))
+        db.createObjectStore('stores',{keyPath:'name'});
+    };
+    req.onsuccess=e=>res(e.target.result);
+    req.onerror=e=>rej(e.target.error);
+  });
+  return dbPromise;
+}
+async function idbGet(store,key){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readonly');
+    const req=tx.objectStore(store).get(key);
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+async function idbPut(store,value){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readwrite');
+    tx.objectStore(store).put(value);
+    tx.oncomplete=()=>res();
+    tx.onerror=()=>rej(tx.error);
+  });
+}
+
+/* ---- Logic ---- */
+const storeName=localStorage.getItem('activeStore');
+let currentStore;
+const subForm=document.getElementById('subForm');
+const subName=document.getElementById('subName');
+const subDesc=document.getElementById('subDesc');
+const categorySelect=document.getElementById('categorySelect');
+const subList=document.getElementById('subList');
+const subSearch=document.getElementById('subSearch');
+const paginationDiv=document.getElementById('pagination');
+const backBtn=document.getElementById('backBtn');
+
+backBtn.addEventListener('click',()=>window.location.href="dashboard.html");
+
+let filteredSubs=[];
+let currentPage=1;
+const pageSize=5;
+let sortDir='asc';
+
+async function loadStore(){
+  if(!storeName){alert("No active store");return;}
+  currentStore=await idbGet('stores',storeName);
+  if(!currentStore.subcategories) currentStore.subcategories=[];
+  if(!currentStore.categories) currentStore.categories=[];
+  populateCategorySelect();
+  applyFilters();
+}
+
+function populateCategorySelect(){
+  categorySelect.innerHTML="<option value=''>Select Category</option>";
+  currentStore.categories.forEach(c=>{
+    const opt=document.createElement('option');
+    opt.value=c.name; opt.textContent=c.name;
+    categorySelect.appendChild(opt);
+  });
+}
+
+function applyFilters(){
+  const filter=subSearch.value.trim().toLowerCase();
+  filteredSubs=currentStore.subcategories.filter(s=>
+    s.name.toLowerCase().includes(filter) ||
+    (s.description||"").toLowerCase().includes(filter) ||
+    s.categoryName.toLowerCase().includes(filter)
+  );
+  sortSubs();
+  currentPage=1;
+  renderSubs();
+}
+
+function sortSubs(){
+  filteredSubs.sort((a,b)=>{
+    if(a.name.toLowerCase()<b.name.toLowerCase()) return sortDir==='asc'?-1:1;
+    if(a.name.toLowerCase()>b.name.toLowerCase()) return sortDir==='asc'?1:-1;
+    return 0;
+  });
+}
+
+function renderSubs(){
+  subList.innerHTML="";
+  if(filteredSubs.length===0){
+    subList.innerHTML="<p>No subcategories found.</p>";
+    paginationDiv.innerHTML="";
+    return;
+  }
+  const start=(currentPage-1)*pageSize;
+  const pageSubs=filteredSubs.slice(start,start+pageSize);
+
+  pageSubs.forEach((s,i)=>{
+    const div=document.createElement("div");
+    div.className="subCard";
+    div.innerHTML=`
+      <div class="subInfo">
+        <span class="subName">${s.name}</span>
+        <span class="subCategory">Category: ${s.categoryName}</span>
+        <span class="subDesc">${s.description||""}</span>
+      </div>
+      <span class="actions">
+        <button class="update">Edit</button>
+        <button class="delete">Delete</button>
+      </span>
+    `;
+    div.querySelector(".update").addEventListener("click",()=>editSub(currentStore.subcategories.indexOf(s)));
+    div.querySelector(".delete").addEventListener("click",()=>deleteSub(currentStore.subcategories.indexOf(s)));
+    subList.appendChild(div);
+  });
+
+  renderPagination();
+}
+
+function renderPagination(){
+  paginationDiv.innerHTML="";
+  const totalPages=Math.ceil(filteredSubs.length/pageSize);
+  for(let i=1;i<=totalPages;i++){
+    const btn=document.createElement("button");
+    btn.textContent=i;
+    if(i===currentPage) btn.classList.add("active");
+    btn.addEventListener("click",()=>{currentPage=i;renderSubs();});
+    paginationDiv.appendChild(btn);
+  }
+}
+
+/* ---- Event Listeners ---- */
+subSearch.addEventListener("input",applyFilters);
+
+subForm.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const name=subName.value.trim();
+  const desc=subDesc.value.trim();
+  const catName=categorySelect.value;
+  if(!name || !catName){alert("Select category and enter name");return;}
+
+  const exists=currentStore.subcategories.some(s=>s.name.toLowerCase()===name.toLowerCase() && s.categoryName===catName);
+  if(exists){alert("Subcategory already exists in this category!");return;}
+
+  currentStore.subcategories.push({name,description:desc,categoryName:catName});
+  await idbPut('stores',currentStore);
+  subName.value="";subDesc.value="";categorySelect.value="";
+  applyFilters();
+});
+
+async function editSub(index){
+  const current=currentStore.subcategories[index];
+  const newName=prompt("Edit subcategory name:",current.name);
+  if(!newName||!newName.trim()) return;
+  const newCat=prompt("Edit category:",current.categoryName);
+  if(!newCat||!currentStore.categories.some(c=>c.name===newCat)) return alert("Category invalid");
+  const newDesc=prompt("Edit description:",current.description||"")||"";
+
+  const exists=currentStore.subcategories.some((s,i)=>i!==index && s.name.toLowerCase()===newName.toLowerCase() && s.categoryName===newCat);
+  if(exists){alert("Another subcategory with this name exists in this category!");return;}
+
+  currentStore.subcategories[index]={name:newName.trim(),description:newDesc.trim(),categoryName:newCat};
+  await idbPut('stores',currentStore);
+  applyFilters();
+}
+
+async function deleteSub(index){
+  if(!confirm("Delete this subcategory?")) return;
+  currentStore.subcategories.splice(index,1);
+  await idbPut('stores',currentStore);
+  applyFilters();
+}
+
+/* ---- Init ---- */
+loadStore();
+</script>
+</body>
+</html>
