@@ -1,89 +1,142 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Workout Planner - Selección de rutina</title>
-<style>
-  body { margin:0; font-family:system-ui,sans-serif; background:#0f1724; color:#f1f5f9; display:flex; justify-content:center; align-items:center; height:100vh; }
-  .app { background:#1e293b; padding:20px; border-radius:12px; width:90%; max-width:400px; text-align:center; }
-  input, button, select { padding:10px; margin:5px 0; border-radius:8px; border:none; font-size:16px; width:100%; }
-  button { cursor:pointer; font-weight:600; }
-  button.create-btn { background:#6366f1; color:#fff; }
-  button.open-btn { background:#14b8a6; color:#fff; }
-</style>
-  <link rel="manifest" href="workout-planner/manifest.json">
-
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Workout Planner — Selección</title>
+<link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Workout Planner">
-<link rel="apple-touch-icon" href="workout-planner/icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  body{margin:0;font-family:system-ui,Arial;background:#0f1724;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh}
+  .card{background:#1e293b;padding:20px;border-radius:12px;width:92%;max-width:420px;text-align:center}
+  input,select,button{width:100%;padding:10px;margin:8px 0;border-radius:8px;border:0;font-size:16px}
+  button.create{background:#6366f1;color:#fff;font-weight:700}
+  button.open{background:#14b8a6;color:#fff;font-weight:700}
+</style>
 </head>
 <body>
-<div class="app">
-  <h1>💪 Workout Planner</h1>
-  
-  <select id="routineSelect">
-    <option value="">-- Selecciona rutina --</option>
-  </select>
-  <input type="text" id="newRoutine" placeholder="Nueva rutina">
-  <button class="create-btn" onclick="createRoutine()">Crear nueva rutina</button>
-  <button class="open-btn" onclick="openRoutine()">Abrir rutina</button>
-</div>
+  <div class="card">
+    <h2>💪 Workout Planner</h2>
+    <select id="routineSelect"><option value="">-- Selecciona rutina --</option></select>
+    <input id="newRoutine" placeholder="Nombre nueva rutina">
+    <button class="create" id="createBtn">Crear nueva rutina</button>
+    <button class="open" id="openBtn">Abrir rutina</button>
+    <p style="font-size:13px;color:#a6b0c3;margin-top:8px">Usa Safari para "Añadir a pantalla de inicio" y que la PWA abra en modo app.</p>
+  </div>
 
 <script>
-let db;
-const request = indexedDB.open("WorkoutPlannerDB",1);
-request.onupgradeneeded = e => {
-  db = e.target.result;
-  if(!db.objectStoreNames.contains("routines")) db.createObjectStore("routines",{keyPath:"name"});
-};
-request.onsuccess = e => {
-  db = e.target.result;
-  loadRoutines();
-};
+/* ---- IndexedDB helper (promise-based) ---- */
+const DB_NAME = 'WorkoutPlannerDB';
+const DB_VERSION = 1;
+let dbPromise;
 
-function getStore(store,mode="readonly"){ return db.transaction(store,mode).objectStore(store); }
-
-function loadRoutines(){
-  const select = document.getElementById("routineSelect");
-  select.innerHTML='<option value="">-- Selecciona rutina --</option>';
-  const tx = getStore("routines");
-  const req = tx.getAll();
-  req.onsuccess = ()=>{
-    req.result.forEach(r=>{
-      const option = document.createElement("option");
-      option.value=r.name; option.textContent=r.name;
-      select.appendChild(option);
-    });
-  };
+function openDB(){
+  if(dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains('routines')) db.createObjectStore('routines', { keyPath: 'name' });
+      if(!db.objectStoreNames.contains('exercises')) db.createObjectStore('exercises', { keyPath: 'name' });
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+  return dbPromise;
 }
 
-function createRoutine(){
-  const name = document.getElementById("newRoutine").value.trim();
-  if(!name) return alert("Escribí un nombre para la rutina");
-  const tx = getStore("routines","readwrite");
-  tx.put({name,created:Date.now()});
-  tx.transaction.oncomplete = ()=> {
-    loadRoutines();
-    document.getElementById("newRoutine").value="";
-    document.getElementById("routineSelect").value = name;
-    openRoutine();
-  };
+async function idbGetAll(storeName){
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(storeName, 'readonly');
+    const req = tx.objectStore(storeName).getAll();
+    req.onsuccess = () => res(req.result || []);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbGet(storeName, key){
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(storeName, 'readonly');
+    const req = tx.objectStore(storeName).get(key);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbPut(storeName, value){
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const req = tx.objectStore(storeName).put(value);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+
+/* ---- UI logic ---- */
+const routineSelect = document.getElementById('routineSelect');
+const newRoutineInput = document.getElementById('newRoutine');
+document.getElementById('createBtn').addEventListener('click', createRoutine);
+document.getElementById('openBtn').addEventListener('click', openRoutine);
+
+async function loadRoutines(){
+  routineSelect.innerHTML = '<option value="">-- Selecciona rutina --</option>';
+  try {
+    const list = await idbGetAll('routines');
+    list.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.name;
+      opt.textContent = r.name;
+      routineSelect.appendChild(opt);
+    });
+  } catch(err){
+    console.error('loadRoutines err', err);
+  }
+}
+
+async function createRoutine(){
+  const name = newRoutineInput.value.trim();
+  if(!name) return alert('Escribí un nombre para la rutina');
+  // Evitar duplicados: checkear
+  const existing = await idbGet('routines', name);
+  if(existing){
+    if(!confirm('La rutina ya existe. Abrirla de todas formas?')) return;
+    localStorage.setItem('activeRoutine', name);
+    window.location.href = 'planner.html';
+    return;
+  }
+  // crear estructura días
+  const days = {};
+  const daysOfWeek = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+  daysOfWeek.forEach(d=> days[d]=[]);
+  await idbPut('routines', { name, days });
+  // recargar select y abrir
+  await loadRoutines();
+  newRoutineInput.value = '';
+  routineSelect.value = name;
+  localStorage.setItem('activeRoutine', name);
+  window.location.href = 'planner.html';
 }
 
 function openRoutine(){
-  const select = document.getElementById("routineSelect");
-  const name = select.value;
-  if(!name) return alert("Seleccioná una rutina");
-  // Guardamos en localStorage la rutina activa
-  localStorage.setItem("activeRoutine", name);
-  // Abrimos planner
-  window.location.href="planner.html";
+  const name = routineSelect.value;
+  if(!name) return alert('Seleccioná una rutina');
+  localStorage.setItem('activeRoutine', name);
+  window.location.href = 'planner.html';
 }
 
-/* PWA service worker */
-if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js"); }
+/* Service worker registration (relative scope) */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js', { scope: './' })
+    .then(()=> console.log('SW registered (index)'))
+    .catch(e=> console.warn('SW register failed', e));
+}
+
+/* Inicializar lista */
+loadRoutines();
 </script>
 </body>
 </html>
