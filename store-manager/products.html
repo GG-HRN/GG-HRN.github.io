@@ -2,122 +2,121 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Store Manager - Products</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1e293b">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
-body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f0f2f5; }
-header { background:#1e293b; color:white; padding:1rem; text-align:center; }
-.container { padding:1rem; max-width:900px; margin:auto; }
-input, select, button { padding:0.5rem; margin:0.3rem 0; width:100%; box-sizing:border-box; }
-label { display:block; margin-top:0.5rem; }
-.card { background:white; padding:1rem; margin:0.5rem 0; border-radius:5px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
-.actions button { margin-right:0.5rem; }
-.hidden { display:none; }
-.prodDetail { font-size:0.85rem; color:#555; }
-#pagination button { margin:0 0.2rem; }
-#pagination button.active { background:#1e293b; color:white; }
-@media (max-width:600px){
-  .actions button { width:48%; margin-top:0.5rem; }
-}
+body{margin:0;font-family:Arial,sans-serif;background:#0f1724;color:#fff;padding:1rem;}
+h1{text-align:center;margin-bottom:1rem;}
+.container{max-width:900px;margin:auto;}
+form{background:#1e293b;padding:1rem;border-radius:8px;margin-bottom:1rem;}
+input,select,button{width:100%;padding:0.5rem;margin:0.3rem 0;border-radius:6px;border:none;}
+label{display:block;margin-top:0.5rem;}
+.checkbox-group{display:flex;gap:1rem;margin-top:0.5rem;}
+.checkbox-group label{flex:1;}
+.hidden{display:none;}
+.card{background:#1e293b;padding:1rem;border-radius:8px;margin:0.5rem 0;box-shadow:0 1px 3px rgba(0,0,0,0.3);}
+.card strong{display:block;}
+.prodDetail{font-size:0.85rem;color:#cbd5e1;}
+.actions{margin-top:0.5rem;}
+.actions button{margin-right:0.3rem;padding:0.3rem 0.5rem;border-radius:6px;cursor:pointer;}
+#pagination button{margin:0.2rem;}
+#pagination button.active{background:#6366f1;color:#fff;}
+@media(min-width:600px){.checkbox-group{flex-direction:row;}}
 </style>
 </head>
 <body>
-
-<header><h1>Store Manager - Products</h1></header>
-
+<h1>Products</h1>
 <div class="container">
-  <h2>Add / Edit Product</h2>
-  <form id="prodForm">
-    <label>Name *</label>
-    <input type="text" id="prodName" required>
 
-    <label>Brand *</label>
-    <select id="prodBrand" required></select>
+<form id="prodForm">
+<label>Name *</label>
+<input type="text" id="prodName" required>
 
-    <label>Category *</label>
-    <select id="prodCategory" required></select>
+<label>Brand *</label>
+<select id="prodBrand" required></select>
 
-    <label>Subcategory *</label>
-    <select id="prodSubcategory" required></select>
+<label>Category *</label>
+<select id="prodCategory" required></select>
 
-    <label>Price *</label>
-    <input type="number" id="prodPrice" min="0" step="0.01" required>
-    <label>Cost *</label>
-    <input type="number" id="prodCost" min="0" step="0.01" required>
+<label>Subcategory *</label>
+<select id="prodSubcategory" required></select>
 
-    <div style="display:flex; gap:1rem; margin-top:0.5rem;">
-      <label><input type="checkbox" id="chkWarranty"> Warranty</label>
-      <label><input type="checkbox" id="chkExpiration"> Expiration</label>
-    </div>
+<label>Price *</label>
+<input type="number" id="prodPrice" min="0" step="0.01" required>
 
-    <div id="warrantyFields" class="hidden">
-      <label>Serial Number</label>
-      <input type="text" id="prodSerial">
-      <label>Warranty Date</label>
-      <input type="date" id="prodWarrantyDate">
-    </div>
+<label>Cost *</label>
+<input type="number" id="prodCost" min="0" step="0.01" required>
 
-    <div id="expirationFields" class="hidden">
-      <label>Expiration Date</label>
-      <input type="date" id="prodExpirationDate">
-      <label>Lot Number</label>
-      <input type="text" id="prodLot">
-      <label>Quantity</label>
-      <input type="number" id="prodQuantity" min="1" value="1">
-    </div>
+<div class="checkbox-group">
+<label><input type="checkbox" id="chkWarranty"> Warranty</label>
+<label><input type="checkbox" id="chkExpiration"> Expiration</label>
+</div>
 
-    <button type="submit">Save Product</button>
-  </form>
+<div id="warrantyFields" class="hidden">
+<label>Serial Number</label><input type="text" id="prodSerial">
+<label>Warranty Date</label><input type="date" id="prodWarrantyDate">
+</div>
 
-  <h2>Products</h2>
-  <input type="text" id="prodSearch" placeholder="Search products...">
-  <div id="prodList"></div>
-  <div id="pagination"></div>
+<div id="expirationFields" class="hidden">
+<label>Expiration Date</label><input type="date" id="prodExpirationDate">
+<label>Lot</label><input type="text" id="prodLot">
+<label>Quantity</label><input type="number" id="prodQuantity" min="1" value="1">
+</div>
+
+<button type="submit">Save Product</button>
+</form>
+
+<input type="text" id="prodSearch" placeholder="Search products...">
+<div id="prodList"></div>
+<div id="pagination"></div>
 </div>
 
 <script>
-// ---------------- IndexedDB Setup ----------------
+// --- Setup ---
+let activeStoreName = localStorage.getItem('activeStore');
+if(!activeStoreName){ alert('No active store selected'); throw 'No active store'; }
+
+const DB_NAME='StoresDB', DB_VERSION=1;
 let db;
-const request = indexedDB.open('storeManagerDB',1);
-request.onupgradeneeded = e=>{
-  db = e.target.result;
-  if(!db.objectStoreNames.contains('products')) db.createObjectStore('products',{keyPath:'id',autoIncrement:true});
-  if(!db.objectStoreNames.contains('brands')) db.createObjectStore('brands',{keyPath:'id',autoIncrement:true});
-  if(!db.objectStoreNames.contains('categories')) db.createObjectStore('categories',{keyPath:'id',autoIncrement:true});
-  if(!db.objectStoreNames.contains('subcategories')) db.createObjectStore('subcategories',{keyPath:'id',autoIncrement:true});
+
+// --- IndexedDB ---
+const request = indexedDB.open(DB_NAME,DB_VERSION);
+request.onupgradeneeded=e=>{
+  db=e.target.result;
+  if(!db.objectStoreNames.contains('stores')) db.createObjectStore('stores',{keyPath:'name'});
 };
-request.onsuccess = e=>{ db = e.target.result; loadAll(); };
-request.onerror = e=>{ console.error('IndexedDB error', e); };
+request.onsuccess=e=>{ db=e.target.result; loadStore(); };
+request.onerror=e=>console.error('DB error',e);
 
-// ---------------- Elements ----------------
-const prodForm = document.getElementById('prodForm');
-const prodName = document.getElementById('prodName');
-const prodBrand = document.getElementById('prodBrand');
-const prodCategory = document.getElementById('prodCategory');
-const prodSubcategory = document.getElementById('prodSubcategory');
-const prodPrice = document.getElementById('prodPrice');
-const prodCost = document.getElementById('prodCost');
-const chkWarranty = document.getElementById('chkWarranty');
-const chkExpiration = document.getElementById('chkExpiration');
-const warrantyFields = document.getElementById('warrantyFields');
-const expirationFields = document.getElementById('expirationFields');
-const prodSerial = document.getElementById('prodSerial');
-const prodWarrantyDate = document.getElementById('prodWarrantyDate');
-const prodExpirationDate = document.getElementById('prodExpirationDate');
-const prodLot = document.getElementById('prodLot');
-const prodQuantity = document.getElementById('prodQuantity');
-const prodSearch = document.getElementById('prodSearch');
-const prodList = document.getElementById('prodList');
-const paginationDiv = document.getElementById('pagination');
+let storeObj={};
+let products=[],brands=[],categories=[],subcategories=[];
+let currentPage=1, pageSize=5;
 
-let products=[]; 
-let currentPage=1;
-const pageSize=5;
+// --- Elements ---
+const prodForm=document.getElementById('prodForm');
+const prodName=document.getElementById('prodName');
+const prodBrand=document.getElementById('prodBrand');
+const prodCategory=document.getElementById('prodCategory');
+const prodSubcategory=document.getElementById('prodSubcategory');
+const prodPrice=document.getElementById('prodPrice');
+const prodCost=document.getElementById('prodCost');
+const chkWarranty=document.getElementById('chkWarranty');
+const chkExpiration=document.getElementById('chkExpiration');
+const warrantyFields=document.getElementById('warrantyFields');
+const expirationFields=document.getElementById('expirationFields');
+const prodSerial=document.getElementById('prodSerial');
+const prodWarrantyDate=document.getElementById('prodWarrantyDate');
+const prodExpirationDate=document.getElementById('prodExpirationDate');
+const prodLot=document.getElementById('prodLot');
+const prodQuantity=document.getElementById('prodQuantity');
+const prodSearch=document.getElementById('prodSearch');
+const prodList=document.getElementById('prodList');
+const paginationDiv=document.getElementById('pagination');
 
-// ---------------- Warranty / Expiration Toggle ----------------
+// --- Toggles ---
 chkWarranty.addEventListener('change',()=>{
   warrantyFields.classList.toggle('hidden',!chkWarranty.checked);
   if(chkWarranty.checked){ chkExpiration.checked=false; expirationFields.classList.add('hidden'); }
@@ -127,193 +126,124 @@ chkExpiration.addEventListener('change',()=>{
   if(chkExpiration.checked){ chkWarranty.checked=false; warrantyFields.classList.add('hidden'); }
 });
 
-// ---------------- Load options ----------------
-function loadAll(){
-  loadOptions('brands',prodBrand);
-  loadOptions('categories',prodCategory);
-  loadOptions('subcategories',prodSubcategory);
-  loadProducts();
-}
-
-function loadOptions(storeName,selectElem){
-  const tx = db.transaction(storeName,'readonly');
-  const store = tx.objectStore(storeName);
-  store.getAll().onsuccess = e=>{
-    selectElem.innerHTML='';
-    e.target.result.forEach(item=>{
-      const opt = document.createElement('option');
-      opt.value = item.name;
-      opt.textContent = item.name;
-      selectElem.appendChild(opt);
-    });
+// --- Load Store ---
+function loadStore(){
+  const tx=db.transaction('stores','readonly');
+  tx.objectStore('stores').get(activeStoreName).onsuccess=e=>{
+    storeObj=e.target.result;
+    if(!storeObj){ alert('Store not found'); return; }
+    brands=storeObj.brands||[]; categories=storeObj.categories||[]; subcategories=storeObj.subcategories||[];
+    products=storeObj.products||[];
+    fillSelects();
+    renderProducts();
   };
 }
 
-// ---------------- Ensure option exists ----------------
-function ensureOptionExists(storeName,value,callback){
-  if(!value) { callback(); return; }
-  const tx = db.transaction(storeName,'readwrite');
-  const store = tx.objectStore(storeName);
-  store.getAll().onsuccess = e=>{
-    const exists = e.target.result.some(i=>i.name===value);
-    if(!exists){ store.add({name:value}); tx.oncomplete=callback; }
-    else callback();
-  };
+// --- Fill Selects ---
+function fillSelects(){
+  function fill(sel,arr){ sel.innerHTML=''; arr.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); }
+  fill(prodBrand,brands); fill(prodCategory,categories); fill(prodSubcategory,subcategories);
 }
 
-// ---------------- Load Products ----------------
-function loadProducts(){
-  const tx = db.transaction('products','readonly');
-  const store = tx.objectStore('products');
-  store.getAll().onsuccess = e=>{
-    products = e.target.result;
-    applyFilters();
-  };
+// --- Save back store ---
+function saveStore(){ 
+  const tx=db.transaction('stores','readwrite');
+  tx.objectStore('stores').put(storeObj); 
 }
 
-// ---------------- Save / Delete Product ----------------
-function saveProduct(prod){
-  const tx = db.transaction('products','readwrite');
-  tx.objectStore('products').put(prod);
-  tx.oncomplete = ()=> loadProducts();
-}
-
-function deleteProduct(id){
-  if(confirm('Delete this product?')){
-    const tx = db.transaction('products','readwrite');
-    tx.objectStore('products').delete(id);
-    tx.oncomplete = ()=> loadProducts();
-  }
-}
-
-// ---------------- Form Submit ----------------
-prodForm.onsubmit = e=>{
+// --- Add or Update Product ---
+prodForm.addEventListener('submit',e=>{
   e.preventDefault();
-  const newProd = {
-    id: Date.now(),
-    name: prodName.value.trim(),
-    brand: prodBrand.value,
-    category: prodCategory.value,
-    subcategory: prodSubcategory.value,
-    price: parseFloat(prodPrice.value),
-    cost: parseFloat(prodCost.value),
-    warranty: chkWarranty.checked,
-    expiration: chkExpiration.checked,
-    serial: prodSerial.value.trim(),
-    warrantyDate: prodWarrantyDate.value,
-    expirationDate: prodExpirationDate.value,
-    lot: prodLot.value.trim(),
-    quantity: parseInt(prodQuantity.value)||1
+  const newProd={
+    id:Date.now(),
+    name:prodName.value.trim(),
+    brand:prodBrand.value,
+    category:prodCategory.value,
+    subcategory:prodSubcategory.value,
+    price:parseFloat(prodPrice.value),
+    cost:parseFloat(prodCost.value),
+    warranty:chkWarranty.checked,
+    expiration:chkExpiration.checked,
+    serial:prodSerial.value.trim(),
+    warrantyDate:prodWarrantyDate.value,
+    expirationDate:prodExpirationDate.value,
+    lot:prodLot.value.trim(),
+    quantity:parseInt(prodQuantity.value)||1
   };
-  if(!newProd.name || !newProd.brand || !newProd.category || !newProd.subcategory || !newProd.price || !newProd.cost){
-    return alert('Fill all required fields');
-  }
+  if(!newProd.name || !newProd.brand || !newProd.category || !newProd.subcategory || !newProd.price || !newProd.cost){ alert('Fill all required fields'); return; }
 
-  ensureOptionExists('brands', newProd.brand, ()=>{
-    ensureOptionExists('categories', newProd.category, ()=>{
-      ensureOptionExists('subcategories', newProd.subcategory, ()=>{
-        addOrUpdateProduct(newProd);
-        prodForm.reset();
-        warrantyFields.classList.add('hidden');
-        expirationFields.classList.add('hidden');
-      });
-    });
-  });
-};
-
-// ---------------- Add or update product ----------------
-function addOrUpdateProduct(newProd){
-  let existingIndex=-1;
-  if(newProd.warranty){
-    newProd.quantity=1;
-  } else if(newProd.expiration){
-    existingIndex = products.findIndex(p=>
-      p.name===newProd.name && p.price===newProd.price && p.cost===newProd.cost &&
-      p.brand===newProd.brand && p.category===newProd.category && p.subcategory===newProd.subcategory &&
-      p.expiration && p.expirationDate===newProd.expirationDate && p.lot===newProd.lot
-    );
+  // Auto add brand/category/subcategory if missing
+  if(!brands.includes(newProd.brand)){ brands.push(newProd.brand); storeObj.brands=brands; }
+  if(!categories.includes(newProd.category)){ categories.push(newProd.category); storeObj.categories=categories; }
+  if(!subcategories.includes(newProd.subcategory)){ subcategories.push(newProd.subcategory); storeObj.subcategories=subcategories; }
+  
+  // Duplication rules
+  let foundIndex=-1;
+  if(newProd.warranty){ newProd.quantity=1; }
+  else if(newProd.expiration){
+    foundIndex=products.findIndex(p=>p.name===newProd.name && p.brand===newProd.brand && p.category===newProd.category && p.subcategory===newProd.subcategory && p.price===newProd.price && p.cost===newProd.cost && p.expiration && p.lot===newProd.lot && p.expirationDate===newProd.expirationDate);
   } else {
-    existingIndex = products.findIndex(p=>
-      p.name===newProd.name && p.price===newProd.price && p.cost===newProd.cost &&
-      p.brand===newProd.brand && p.category===newProd.category && p.subcategory===newProd.subcategory &&
-      !p.warranty && !p.expiration
-    );
+    foundIndex=products.findIndex(p=>p.name===newProd.name && p.brand===newProd.brand && p.category===newProd.category && p.subcategory===newProd.subcategory && p.price===newProd.price && p.cost===newProd.cost && !p.warranty && !p.expiration);
   }
 
-  if(existingIndex>=0){
-    products[existingIndex].quantity += newProd.quantity;
-    saveProduct(products[existingIndex]);
-  } else {
-    saveProduct(newProd);
-  }
-}
+  if(foundIndex>=0){ products[foundIndex].quantity += newProd.quantity; }
+  else{ products.push(newProd); }
 
-// ---------------- Search & Pagination ----------------
-prodSearch.addEventListener('input',()=>{ currentPage=1; applyFilters(); });
+  storeObj.products=products; saveStore(); fillSelects(); renderProducts(); prodForm.reset(); warrantyFields.classList.add('hidden'); expirationFields.classList.add('hidden');
+});
 
-function applyFilters(){
-  const term = prodSearch.value.toLowerCase();
-  const filtered = products.filter(p=>p.name.toLowerCase().includes(term));
-  renderPage(filtered);
-}
-
-function renderPage(filtered){
+// --- Render Products ---
+function renderProducts(){
+  let filtered=products.filter(p=>p.name.toLowerCase().includes(prodSearch.value.toLowerCase()));
+  const totalPages=Math.ceil(filtered.length/pageSize);
   const start=(currentPage-1)*pageSize;
-  const pageData = filtered.slice(start,start+pageSize);
+  const pageData=filtered.slice(start,start+pageSize);
   prodList.innerHTML='';
   if(pageData.length===0){ prodList.innerHTML='<p style="text-align:center;color:#aaa">No products</p>'; paginationDiv.innerHTML=''; return; }
-
   pageData.forEach(p=>{
-    const card = document.createElement('div');
-    card.className='card';
-    card.innerHTML=`
-      <div>
-        <strong>${p.name}</strong>
-        <div class="prodDetail">Brand: ${p.brand} | Category: ${p.category} | Sub: ${p.subcategory}</div>
-        <div class="prodDetail">Price: $${p.price} | Cost: $${p.cost}</div>
-        ${p.warranty?`<div class="prodDetail">Warranty: ${p.serial} / ${p.warrantyDate}</div>`:''}
-        ${p.expiration?`<div class="prodDetail">Exp: ${p.expirationDate} | Lot: ${p.lot} | Qty: ${p.quantity}</div>`:''}
-      </div>
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML=`<strong>${p.name}</strong>
+      <div class="prodDetail">Brand: ${p.brand} | Category: ${p.category} | Sub: ${p.subcategory}</div>
+      <div class="prodDetail">Price: $${p.price} | Cost: $${p.cost}</div>
+      ${p.warranty?`<div class="prodDetail">Warranty: ${p.serial} / ${p.warrantyDate}</div>`:''}
+      ${p.expiration?`<div class="prodDetail">Exp: ${p.expirationDate} | Lot: ${p.lot} | Qty: ${p.quantity}</div>`:''}
       <div class="actions">
         <button onclick="editProduct(${p.id})">Edit</button>
         <button onclick="deleteProduct(${p.id})">Delete</button>
       </div>`;
     prodList.appendChild(card);
   });
-  renderPagination(filtered);
-}
 
-function renderPagination(filtered){
-  const totalPages=Math.ceil(filtered.length/pageSize);
+  // Pagination
   paginationDiv.innerHTML='';
   for(let i=1;i<=totalPages;i++){
     const btn=document.createElement('button');
     btn.textContent=i;
-    btn.className=i===currentPage?'active':'';
-    btn.onclick=()=>{ currentPage=i; renderPage(filtered); };
+    if(i===currentPage) btn.classList.add('active');
+    btn.onclick=(()=>{currentPage=i; renderProducts();});
     paginationDiv.appendChild(btn);
   }
 }
 
-// ---------------- Edit ----------------
+// --- Edit / Delete ---
 function editProduct(id){
-  const p = products.find(p=>p.id===id);
+  const p=products.find(x=>x.id===id);
   if(!p) return;
-  prodName.value = p.name;
-  prodBrand.value = p.brand;
-  prodCategory.value = p.category;
-  prodSubcategory.value = p.subcategory;
-  prodPrice.value = p.price;
-  prodCost.value = p.cost;
-  if(p.warranty){ chkWarranty.checked=true; warrantyFields.classList.remove('hidden'); prodSerial.value=p.serial; prodWarrantyDate.value=p.warrantyDate; }
-  if(p.expiration){ chkExpiration.checked=true; expirationFields.classList.remove('hidden'); prodExpirationDate.value=p.expirationDate; prodLot.value=p.lot; prodQuantity.value=p.quantity; }
-  deleteProduct(id);
+  prodName.value=p.name; prodBrand.value=p.brand; prodCategory.value=p.category; prodSubcategory.value=p.subcategory;
+  prodPrice.value=p.price; prodCost.value=p.cost;
+  chkWarranty.checked=p.warranty; chkExpiration.checked=p.expiration;
+  warrantyFields.classList.toggle('hidden',!p.warranty);
+  expirationFields.classList.toggle('hidden',!p.expiration);
+  prodSerial.value=p.serial; prodWarrantyDate.value=p.warrantyDate;
+  prodExpirationDate.value=p.expirationDate; prodLot.value=p.lot; prodQuantity.value=p.quantity;
+  products=products.filter(x=>x.id!==id); storeObj.products=products; saveStore(); renderProducts();
 }
 
-// ---------------- Service Worker ----------------
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').then(()=>console.log('SW registered'));
-}
+// --- Search ---
+prodSearch.addEventListener('input',()=>{ currentPage=1; renderProducts(); });
+
+// --- Service Worker ---
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js',{scope:'./'}).then(()=>console.log('SW registered')).catch(e=>console.warn('SW failed',e));
 </script>
 </body>
 </html>
