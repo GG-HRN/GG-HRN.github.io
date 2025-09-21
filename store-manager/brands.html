@@ -3,255 +3,203 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Brands</title>
+<title>Products</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Brands">
+<meta name="apple-mobile-web-app-title" content="Products">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="theme-color" content="#1e293b">
 <link rel="icon" href="icons/favicon-32x32.png" sizes="32x32">
 <link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
 
 <style>
-  body{margin:0;font-family:sans-serif;background:#0f1724;color:#fff;}
-  header{
-    display:flex;align-items:center;gap:12px;
-    padding:12px 16px;background:#0b1220;color:#fff;
-    position:sticky;top:0;z-index:20;
-  }
-  #backBtn{
-    background:#6366f1;border:0;color:#fff;
-    padding:6px 10px;border-radius:6px;font-weight:700;cursor:pointer;
-  }
-  #headerTitle{flex:1;text-align:center;font-size:16px;font-weight:700}
-
-  main{padding:16px}
-
-  form{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
-  input,button{padding:10px;font-size:15px;border-radius:6px;border:none;box-sizing:border-box}
-  input{width:100%}
-  button{cursor:pointer;font-weight:700}
-  button.add{background:#10b981;color:#fff}
-  button.update{background:#f59e0b;color:#fff}
-  button.delete{background:#ef4444;color:#fff}
-
-  #brandSearch{margin-bottom:12px;padding:8px;border-radius:6px;border:none;width:100%;box-sizing:border-box}
-
-  .brandCard{
-    background:#1e293b;padding:12px;border-radius:8px;margin-bottom:10px;
-    display:flex;justify-content:space-between;align-items:center
-  }
-  .brandName{font-weight:bold}
-  .actions button{margin-left:6px}
-
-  /* pagination */
-  .pagination{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
-  .pagination button{
-    padding:6px 10px;border:none;border-radius:6px;background:#6366f1;color:#fff;cursor:pointer;font-weight:700
-  }
-  .pagination button.active{background:#10b981}
+body{margin:0;font-family:sans-serif;background:#0f1724;color:#fff;}
+header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#0b1220;color:#fff;position:sticky;top:0;z-index:20;}
+#backBtn{background:#6366f1;border:0;color:#fff;padding:6px 10px;border-radius:6px;font-weight:700;cursor:pointer;}
+#headerTitle{flex:1;text-align:center;font-size:16px;font-weight:700}
+main{padding:16px}
+form{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+input,select,button{padding:10px;font-size:15px;border-radius:6px;border:none;box-sizing:border-box}
+input,select{width:100%}
+button{cursor:pointer;font-weight:700}
+button.add{background:#10b981;color:#fff}
+button.update{background:#f59e0b;color:#fff}
+button.delete{background:#ef4444;color:#fff}
+#prodSearch{margin-bottom:12px;padding:8px;border-radius:6px;border:none;width:100%;box-sizing:border-box}
+.prodCard{background:#1e293b;padding:12px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;flex-direction:column;}
+.prodName{font-weight:bold}
+.prodDetail{font-size:0.85rem;color:#cbd5e1;margin:2px 0}
+.actions{margin-top:4px}
+.actions button{margin-right:6px}
+.pagination{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.pagination button{padding:6px 10px;border:none;border-radius:6px;background:#6366f1;color:#fff;cursor:pointer;font-weight:700}
+.pagination button.active{background:#10b981}
+.hidden{display:none;}
 </style>
 </head>
 <body>
 <header>
   <button id="backBtn">←</button>
-  <div id="headerTitle">Brands</div>
+  <div id="headerTitle">Products</div>
 </header>
 
 <main>
-  <form id="brandForm">
-    <input type="text" id="brandInput" placeholder="Enter brand name"/>
-    <button type="submit" class="add">Add Brand</button>
+  <form id="prodForm">
+    <input type="text" id="prodName" placeholder="Product name *" required>
+    <select id="prodBrand" required></select>
+    <select id="prodCategory" required></select>
+    <select id="prodSubcategory" required></select>
+    <input type="number" id="prodPrice" placeholder="Price *" min="0" step="0.01" required>
+    <input type="number" id="prodCost" placeholder="Cost *" min="0" step="0.01" required>
+
+    <div style="display:flex;gap:8px">
+      <label><input type="checkbox" id="chkWarranty"> Warranty</label>
+      <label><input type="checkbox" id="chkExpiration"> Expiration/Lot</label>
+    </div>
+
+    <div id="warrantyFields" class="hidden">
+      <input type="text" id="prodSerial" placeholder="Serial number">
+      <input type="date" id="prodWarrantyDate">
+      <input type="number" id="prodQuantity" value="1" min="1" readonly>
+    </div>
+
+    <div id="expirationFields" class="hidden">
+      <input type="date" id="prodExpirationDate" placeholder="Expiration Date">
+      <input type="text" id="prodLot" placeholder="Lot">
+      <input type="number" id="prodQuantityExp" value="1" min="1">
+    </div>
+
+    <div id="normalQuantity">
+      <input type="number" id="prodQuantityNorm" value="1" min="1">
+    </div>
+
+    <button type="submit" class="add">Save Product</button>
   </form>
 
-  <input type="text" id="brandSearch" placeholder="Search brands...">
-
-  <div id="brandList"></div>
+  <input type="text" id="prodSearch" placeholder="Search products...">
+  <div id="prodList"></div>
   <div class="pagination" id="pagination"></div>
 </main>
 
 <script>
-/* ---- IndexedDB helpers ---- */
-const DB_NAME='StoresDB',DB_VERSION=1;let dbPromise;
-function openDB(){
-  if(dbPromise) return dbPromise;
-  dbPromise=new Promise((res,rej)=>{
-    const req=indexedDB.open(DB_NAME,DB_VERSION);
-    req.onupgradeneeded=e=>{
-      const db=e.target.result;
-      if(!db.objectStoreNames.contains('stores'))
-        db.createObjectStore('stores',{keyPath:'name'});
-    };
-    req.onsuccess=e=>res(e.target.result);
-    req.onerror=e=>rej(e.target.error);
-  });
-  return dbPromise;
-}
-async function idbGet(store,key){
-  const db=await openDB();
-  return new Promise((res,rej)=>{
-    const tx=db.transaction(store,'readonly');
-    const req=tx.objectStore(store).get(key);
-    req.onsuccess=()=>res(req.result);
-    req.onerror=()=>rej(req.error);
-  });
-}
-async function idbPut(store,value){
-  const db=await openDB();
-  return new Promise((res,rej)=>{
-    const tx=db.transaction(store,'readwrite');
-    tx.objectStore(store).put(value);
-    tx.oncomplete=()=>res();
-    tx.onerror=()=>rej(tx.error);
-  });
+const DB_NAME='StoresDB',DB_VERSION=1;
+let db,storeObj,products=[],brands=[],categories=[],subcategories=[],filtered=[],currentPage=1,pageSize=5;
+const storeName=localStorage.getItem('activeStore'); if(!storeName){alert("No active store");throw 'No active store';}
+
+const prodForm=document.getElementById('prodForm'), prodName=document.getElementById('prodName');
+const prodBrand=document.getElementById('prodBrand'), prodCategory=document.getElementById('prodCategory'), prodSubcategory=document.getElementById('prodSubcategory');
+const prodPrice=document.getElementById('prodPrice'), prodCost=document.getElementById('prodCost');
+const chkWarranty=document.getElementById('chkWarranty'), chkExpiration=document.getElementById('chkExpiration');
+const warrantyFields=document.getElementById('warrantyFields'), expirationFields=document.getElementById('expirationFields');
+const prodSerial=document.getElementById('prodSerial'), prodWarrantyDate=document.getElementById('prodWarrantyDate');
+const prodExpirationDate=document.getElementById('prodExpirationDate'), prodLot=document.getElementById('prodLot');
+const prodQuantity=document.getElementById('prodQuantity'), prodQuantityExp=document.getElementById('prodQuantityExp'), prodQuantityNorm=document.getElementById('prodQuantityNorm');
+const prodSearch=document.getElementById('prodSearch'), prodList=document.getElementById('prodList'), paginationDiv=document.getElementById('pagination');
+const backBtn=document.getElementById('backBtn'); backBtn.addEventListener('click',()=>window.location.href="dashboard.html");
+
+const request=indexedDB.open(DB_NAME,DB_VERSION);
+request.onupgradeneeded=e=>{db=e.target.result;if(!db.objectStoreNames.contains('stores')) db.createObjectStore('stores',{keyPath:'name'});}
+request.onsuccess=e=>{db=e.target.result; loadStore();}
+request.onerror=e=>console.error('DB error',e);
+
+function loadStore(){
+  const tx=db.transaction('stores','readonly'); tx.objectStore('stores').get(storeName).onsuccess=e=>{
+    storeObj=e.target.result; brands=storeObj.brands||[]; categories=storeObj.categories||[]; subcategories=storeObj.subcategories||[]; products=storeObj.products||[];
+    fillSelects(); renderProducts();
+  };
 }
 
-/* ---- Logic ---- */
-const storeName=localStorage.getItem('activeStore');
-let currentStore;
-const brandForm=document.getElementById('brandForm');
-const brandInput=document.getElementById('brandInput');
-const brandList=document.getElementById('brandList');
-const brandSearch=document.getElementById('brandSearch');
-const paginationDiv=document.getElementById('pagination');
-const backBtn=document.getElementById('backBtn');
-
-backBtn.addEventListener('click',()=>window.location.href="dashboard.html");
-
-let filteredBrands=[];
-let currentPage=1;
-const pageSize=5;
-let sortDir='asc';
-
-async function loadStore(){
-  if(!storeName){alert("No active store");return;}
-  currentStore=await idbGet('stores',storeName);
-  if(!currentStore.brands) currentStore.brands=[];
-  applyFilters();
+function fillSelects(){
+  prodBrand.innerHTML=''; brands.forEach(b=>{const o=document.createElement('option');o.value=o.textContent=b; prodBrand.appendChild(o);});
+  prodCategory.innerHTML=''; categories.forEach(c=>{const o=document.createElement('option');o.value=o.textContent=c; prodCategory.appendChild(o);});
+  prodSubcategory.innerHTML='';
 }
-
-function applyFilters(){
-  const filter = brandSearch.value.trim().toLowerCase();
-  filteredBrands=currentStore.brands.filter(b =>
-    b.toLowerCase().includes(filter)
-  );
-
-  sortBrands();
-  currentPage=1;
-  renderBrands();
-}
-
-function sortBrands(){
-  filteredBrands.sort((a,b)=>{
-    if(a.toLowerCase()<b.toLowerCase()) return sortDir==='asc'?-1:1;
-    if(a.toLowerCase()>b.toLowerCase()) return sortDir==='asc'?1:-1;
-    return 0;
-  });
-}
-
-function renderBrands(){
-  brandList.innerHTML="";
-  if(filteredBrands.length===0){
-    brandList.innerHTML="<p>No brands found.</p>";
-    paginationDiv.innerHTML="";
-    return;
-  }
-
-  const start=(currentPage-1)*pageSize;
-  const pageBrands=filteredBrands.slice(start,start+pageSize);
-
-  pageBrands.forEach((b,i)=>{
-    const div=document.createElement("div");
-    div.className="brandCard";
-    div.innerHTML=`
-      <span class="brandName">${b}</span>
-      <span class="actions">
-        <button class="update">Edit</button>
-        <button class="delete">Delete</button>
-      </span>
-    `;
-    div.querySelector(".update").addEventListener("click",()=>editBrand(currentStore.brands.indexOf(b)));
-    div.querySelector(".delete").addEventListener("click",()=>deleteBrand(currentStore.brands.indexOf(b)));
-    brandList.appendChild(div);
-  });
-
-  renderPagination();
-}
-
-function renderPagination(){
-  paginationDiv.innerHTML="";
-  const totalPages=Math.ceil(filteredBrands.length/pageSize);
-  for(let i=1;i<=totalPages;i++){
-    const btn=document.createElement("button");
-    btn.textContent=i;
-    if(i===currentPage) btn.classList.add("active");
-    btn.addEventListener("click",()=>{currentPage=i;renderBrands();});
-    paginationDiv.appendChild(btn);
-  }
-}
-
-/* ---- Event Listeners ---- */
-brandSearch.addEventListener("input",applyFilters);
-brandForm.addEventListener("submit",async e=>{
-  e.preventDefault();
-  const name = brandInput.value.trim();
-  if(!name) return;
-
-  // prevent duplicates
-  const exists=currentStore.brands.some(b=>b.toLowerCase()===name.toLowerCase());
-  if(exists){alert("Brand already exists!"); return;}
-
-  currentStore.brands.push(name);
-  await idbPut('stores',currentStore);
-  brandInput.value="";
-  applyFilters();
+prodCategory.addEventListener('change',()=>{
+  const cat=prodCategory.value;
+  const filteredSubs=subcategories.filter(s=>s.category===cat).map(s=>s.name);
+  prodSubcategory.innerHTML=''; filteredSubs.forEach(s=>{const o=document.createElement('option');o.value=o.textContent=s; prodSubcategory.appendChild(o);});
 });
 
-async function editBrand(index){
-  const current=currentStore.brands[index];
-  const newName=prompt("Edit brand name:",current);
-  if(!newName||!newName.trim()) return;
+chkWarranty.addEventListener('change',()=>{
+  warrantyFields.classList.toggle('hidden',!chkWarranty.checked);
+  if(chkWarranty.checked){
+    chkExpiration.checked=false; expirationFields.classList.add('hidden');
+    prodQuantity.value=1; prodQuantity.readOnly=true; prodQuantityNorm.classList.add('hidden');
+  }else{prodQuantity.readOnly=false; prodQuantityNorm.classList.remove('hidden');}
+});
+chkExpiration.addEventListener('change',()=>{
+  expirationFields.classList.toggle('hidden',!chkExpiration.checked);
+  if(chkExpiration.checked){chkWarranty.checked=false; warrantyFields.classList.add('hidden');}
+  prodQuantityNorm.classList.toggle('hidden',chkExpiration.checked);
+});
 
-  // prevent duplicates
-  const exists=currentStore.brands.some((b,i)=>i!==index && b.toLowerCase()===newName.toLowerCase());
-  if(exists){alert("Another brand with this name exists!"); return;}
+prodForm.addEventListener('submit',e=>{
+  e.preventDefault();
+  const p={name:prodName.value.trim(),brand:prodBrand.value,category:prodCategory.value,subcategory:prodSubcategory.value,price:parseFloat(prodPrice.value),cost:parseFloat(prodCost.value),warranty:chkWarranty.checked,expiration:chkExpiration.checked,serial:prodSerial.value,warrantyDate:prodWarrantyDate.value,expirationDate:prodExpirationDate.value,lot:prodLot.value,quantity:chkWarranty.checked?1:(chkExpiration.checked?parseInt(prodQuantityExp.value):parseInt(prodQuantityNorm.value))};
+  if(!p.name||!p.brand||!p.category||!p.subcategory||!p.price||!p.cost){alert('Fill all required fields');return;}
+  if(!brands.includes(p.brand)){brands.push(p.brand); storeObj.brands=brands;}
+  if(!categories.includes(p.category)){categories.push(p.category); storeObj.categories=categories;}
+  if(!subcategories.some(s=>s.name===p.subcategory&&s.category===p.category)){subcategories.push({name:p.subcategory,category:p.category}); storeObj.subcategories=subcategories;}
 
-  currentStore.brands[index]=newName.trim();
-  await idbPut('stores',currentStore);
-  applyFilters();
-}
+  let foundIndex=-1;
+  if(p.warranty){p.quantity=1;}
+  else if(p.expiration){foundIndex=products.findIndex(pr=>pr.name===p.name && pr.brand===p.brand && pr.category===p.category && pr.subcategory===p.subcategory && pr.price===p.price && pr.cost===p.cost && pr.expiration && pr.lot===p.lot && pr.expirationDate===p.expirationDate);}
+  else{foundIndex=products.findIndex(pr=>pr.name===p.name && pr.brand===p.brand && pr.category===p.category && pr.subcategory===p.subcategory && pr.price===p.price && pr.cost===p.cost && !pr.warranty && !pr.expiration);}
+  if(foundIndex>=0){products[foundIndex].quantity+=p.quantity;} else{products.push(p);}
+  storeObj.products=products; const tx=db.transaction('stores','readwrite'); tx.objectStore('stores').put(storeObj);
+  prodForm.reset(); chkWarranty.checked=false; chkExpiration.checked=false; warrantyFields.classList.add('hidden'); expirationFields.classList.add('hidden'); prodQuantityNorm.classList.remove('hidden');
+  fillSelects(); renderProducts();
+});
 
-async function deleteBrand(index){
-  if(!confirm("Delete this brand?")) return;
-  currentStore.brands.splice(index,1);
-  await idbPut('stores',currentStore);
-  applyFilters();
-}
-
-/* ---- Init ---- */
-loadStore();
-</script>
-  <script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => console.log('SW registered', reg))
-      .catch(err => console.log('SW registration failed', err));
+function renderProducts(){
+  const filter=prodSearch.value.trim().toLowerCase();
+  filtered=products.filter(p=>p.name.toLowerCase().includes(filter));
+  const totalPages=Math.ceil(filtered.length/pageSize);
+  const start=(currentPage-1)*pageSize;
+  const pageItems=filtered.slice(start,start+pageSize);
+  prodList.innerHTML='';
+  if(pageItems.length===0){prodList.innerHTML="<p>No products found.</p>"; paginationDiv.innerHTML=''; return;}
+  pageItems.forEach((p,i)=>{
+    const div=document.createElement('div'); div.className='prodCard';
+    div.innerHTML=`
+      <div class="prodName">${p.name}</div>
+      <div class="prodDetail">Brand: ${p.brand} | Category: ${p.category} | Sub: ${p.subcategory}</div>
+      <div class="prodDetail">Price: $${p.price} | Cost: $${p.cost} | Qty: ${p.quantity}</div>
+      ${p.warranty?`<div class="prodDetail">Warranty: ${p.serial} / ${p.warrantyDate}</div>`:''}
+      ${p.expiration?`<div class="prodDetail">Exp: ${p.expirationDate} | Lot: ${p.lot}</div>`:''}
+      <div class="actions">
+        <button onclick="editProduct(${i})">Edit</button>
+        <button onclick="deleteProduct(${i})">Delete</button>
+      </div>
+    `;
+    prodList.appendChild(div);
   });
+  paginationDiv.innerHTML='';
+  for(let i=1;i<=totalPages;i++){const btn=document.createElement('button');btn.textContent=i;if(i===currentPage)btn.classList.add('active');btn.addEventListener('click',()=>{currentPage=i;renderProducts();});paginationDiv.appendChild(btn);}
 }
 
-// Example: send JSON data to SW to cache dynamically
-function cacheJSON(url, data){
-  if(navigator.serviceWorker.controller){
-    navigator.serviceWorker.controller.postMessage({
-      type:'CACHE_JSON',
-      url,
-      data
-    });
-  }
+function editProduct(index){
+  const p=products[index];
+  prodName.value=p.name; prodBrand.value=p.brand; prodCategory.value=p.category;
+  prodPrice.value=p.price; prodCost.value=p.cost;
+  chkWarranty.checked=p.warranty; chkExpiration.checked=p.expiration;
+  warrantyFields.classList.toggle('hidden',!p.warranty); expirationFields.classList.toggle('hidden',!p.expiration);
+  prodSerial.value=p.serial; prodWarrantyDate.value=p.warrantyDate;
+  prodExpirationDate.value=p.expirationDate; prodLot.value=p.lot;
+  if(p.warranty){prodQuantity.value=1; prodQuantity.readOnly=true; prodQuantityNorm.classList.add('hidden');}
+  else if(p.expiration){prodQuantityExp.value=p.quantity; prodQuantityNorm.classList.add('hidden');}
+  else{prodQuantityNorm.value=p.quantity; prodQuantityNorm.classList.remove('hidden');}
+  products.splice(index,1); storeObj.products=products; db.transaction('stores','readwrite').objectStore('stores').put(storeObj);
+  renderProducts();
 }
+
+function deleteProduct(index){if(confirm("Delete product?")){products.splice(index,1); storeObj.products=products; db.transaction('stores','readwrite').objectStore('stores').put(storeObj); renderProducts();}}
+prodSearch.addEventListener('input',()=>{currentPage=1; renderProducts();});
+</script>
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js',{scope:'./'}).then(()=>console.log('SW registered')).catch(e=>console.warn('SW failed',e));}
 </script>
 </body>
 </html>
