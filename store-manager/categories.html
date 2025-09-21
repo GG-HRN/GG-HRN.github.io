@@ -29,7 +29,7 @@
 
   main{padding:16px}
 
-  form{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+  form{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
   input,textarea,button{padding:10px;font-size:15px;border-radius:6px;border:none;box-sizing:border-box}
   input,textarea{width:100%}
   textarea{resize:vertical;min-height:60px}
@@ -38,6 +38,8 @@
   button.update{background:#f59e0b;color:#fff}
   button.delete{background:#ef4444;color:#fff}
 
+  #catSearch{margin-bottom:12px;padding:8px;border-radius:6px;border:none;width:100%;box-sizing:border-box}
+
   .catCard{
     background:#1e293b;padding:12px;border-radius:8px;margin-bottom:10px;
     display:flex;justify-content:space-between;align-items:center
@@ -45,6 +47,13 @@
   .catInfo{flex:1}
   .catName{font-weight:bold;display:block;margin-bottom:4px}
   .actions button{margin-left:6px}
+
+  /* pagination */
+  .pagination{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+  .pagination button{
+    padding:6px 10px;border:none;border-radius:6px;background:#6366f1;color:#fff;cursor:pointer;font-weight:700
+  }
+  .pagination button.active{background:#10b981}
 </style>
 </head>
 <body>
@@ -60,7 +69,16 @@
     <button type="submit" class="add">Add Category</button>
   </form>
 
+  <input type="text" id="catSearch" placeholder="Search categories...">
+
+  <div>
+    Sort by: 
+    <button id="sortAsc">A→Z</button>
+    <button id="sortDesc">Z→A</button>
+  </div>
+
   <div id="catList"></div>
+  <div class="pagination" id="pagination"></div>
 </main>
 
 <script>
@@ -102,29 +120,62 @@ async function idbPut(store,value){
 /* ---- Logic ---- */
 const storeName=localStorage.getItem('activeStore');
 let currentStore;
-
 const catForm=document.getElementById('catForm');
 const catName=document.getElementById('catName');
 const catDesc=document.getElementById('catDesc');
 const catList=document.getElementById('catList');
+const catSearch=document.getElementById('catSearch');
+const paginationDiv=document.getElementById('pagination');
 const backBtn=document.getElementById('backBtn');
+const sortAscBtn=document.getElementById('sortAsc');
+const sortDescBtn=document.getElementById('sortDesc');
 
 backBtn.addEventListener('click',()=>window.location.href="dashboard.html");
+
+let filteredCats=[];
+let currentPage=1;
+const pageSize=5;
+let sortDir='asc';
 
 async function loadStore(){
   if(!storeName){alert("No active store");return;}
   currentStore=await idbGet('stores',storeName);
   if(!currentStore.categories) currentStore.categories=[];
+  applyFilters();
+}
+
+function applyFilters(){
+  const filter = catSearch.value.trim().toLowerCase();
+  filteredCats=currentStore.categories.filter(c =>
+    c.name.toLowerCase().includes(filter) ||
+    (c.description||"").toLowerCase().includes(filter)
+  );
+
+  sortCats();
+  currentPage=1;
   renderCategories();
+}
+
+function sortCats(){
+  filteredCats.sort((a,b)=>{
+    if(a.name.toLowerCase()<b.name.toLowerCase()) return sortDir==='asc'?-1:1;
+    if(a.name.toLowerCase()>b.name.toLowerCase()) return sortDir==='asc'?1:-1;
+    return 0;
+  });
 }
 
 function renderCategories(){
   catList.innerHTML="";
-  if(currentStore.categories.length===0){
-    catList.innerHTML="<p>No categories created yet.</p>";
+  if(filteredCats.length===0){
+    catList.innerHTML="<p>No categories found.</p>";
+    paginationDiv.innerHTML="";
     return;
   }
-  currentStore.categories.forEach((c,i)=>{
+
+  const start=(currentPage-1)*pageSize;
+  const pageCats=filteredCats.slice(start,start+pageSize);
+
+  pageCats.forEach((c,i)=>{
     const div=document.createElement("div");
     div.className="catCard";
     div.innerHTML=`
@@ -137,41 +188,70 @@ function renderCategories(){
         <button class="delete">Delete</button>
       </span>
     `;
-    div.querySelector(".update").addEventListener("click",()=>editCategory(i));
-    div.querySelector(".delete").addEventListener("click",()=>deleteCategory(i));
+    div.querySelector(".update").addEventListener("click",()=>editCategory(currentStore.categories.indexOf(c)));
+    div.querySelector(".delete").addEventListener("click",()=>deleteCategory(currentStore.categories.indexOf(c)));
     catList.appendChild(div);
   });
+
+  renderPagination();
 }
+
+function renderPagination(){
+  paginationDiv.innerHTML="";
+  const totalPages=Math.ceil(filteredCats.length/pageSize);
+  for(let i=1;i<=totalPages;i++){
+    const btn=document.createElement("button");
+    btn.textContent=i;
+    if(i===currentPage) btn.classList.add("active");
+    btn.addEventListener("click",()=>{currentPage=i;renderCategories();});
+    paginationDiv.appendChild(btn);
+  }
+}
+
+/* ---- Event Listeners ---- */
+catSearch.addEventListener("input",applyFilters);
+sortAscBtn.addEventListener("click",()=>{sortDir='asc';sortCats();renderCategories();});
+sortDescBtn.addEventListener("click",()=>{sortDir='desc';sortCats();renderCategories();});
 
 catForm.addEventListener("submit",async e=>{
   e.preventDefault();
-  const name=catName.value.trim();
-  const desc=catDesc.value.trim();
+  const name = catName.value.trim();
+  const desc = catDesc.value.trim();
   if(!name) return;
+
+  // prevent duplicates
+  const exists=currentStore.categories.some(c=>c.name.toLowerCase()===name.toLowerCase());
+  if(exists){alert("Category already exists!"); return;}
+
   currentStore.categories.push({name,description:desc});
   await idbPut('stores',currentStore);
   catName.value="";catDesc.value="";
-  renderCategories();
+  applyFilters();
 });
 
 async function editCategory(index){
   const current=currentStore.categories[index];
   const newName=prompt("Edit category name:",current.name);
   if(!newName||!newName.trim()) return;
+
+  // prevent duplicates
+  const exists=currentStore.categories.some((c,i)=>i!==index && c.name.toLowerCase()===newName.toLowerCase());
+  if(exists){alert("Another category with this name exists!"); return;}
+
   const newDesc=prompt("Edit description:",current.description||"")||"";
   currentStore.categories[index]={name:newName.trim(),description:newDesc.trim()};
   await idbPut('stores',currentStore);
-  renderCategories();
+  applyFilters();
 }
 
 async function deleteCategory(index){
   if(!confirm("Delete this category?")) return;
   currentStore.categories.splice(index,1);
   await idbPut('stores',currentStore);
-  renderCategories();
+  applyFilters();
 }
 
-/* Init */
+/* ---- Init ---- */
 loadStore();
 </script>
 </body>
