@@ -113,7 +113,7 @@ function loadStore(){
 
 function fillSelects(){
   prodBrand.innerHTML=''; brands.forEach(b=>{const o=document.createElement('option');o.value=o.textContent=b; prodBrand.appendChild(o);});
-  prodCategory.innerHTML=''; categories.forEach(c=>{const o=document.createElement('option');o.value=o.textContent=c; prodCategory.appendChild(o);});
+  prodCategory.innerHTML=''; categories.forEach(c=>{const o=document.createElement('option');o.value=o.textContent=c.name; prodCategory.appendChild(o);});
   prodSubcategory.innerHTML='';
 }
 prodCategory.addEventListener('change',()=>{
