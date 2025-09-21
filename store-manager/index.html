@@ -4,11 +4,23 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Store Manager</title>
+
+<!-- PWA manifest -->
 <link rel="manifest" href="manifest.json">
+
+<!-- iOS support -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Store Manager">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<!-- theme color -->
+<meta name="theme-color" content="#1e293b">
+
+<!-- favicons -->
+<link rel="icon" href="icons/favicon-32x32.png" sizes="32x32">
+<link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
+
 <style>
 body{margin:0;font-family:system-ui,Arial;background:#0f1724;color:#fff;display:flex;flex-direction:column;align-items:center;padding:20px}
 h1{text-align:center;margin-bottom:20px}
@@ -142,11 +154,32 @@ async function createStore(){
   const name = nameInput.value.trim();
   const desc = descInput.value.trim();
   if(!name) return alert('Enter a store name');
-  const existing = await idbGet('stores',name);
-  if(existing){ alert('Store already exists'); return; }
-  await idbPut('stores',{ name, description: desc });
-  nameInput.value='';
-  descInput.value='';
+
+  // Check if store already exists
+  const existing = await idbGet('stores', name);
+  if(existing){
+    alert('Store already exists');
+    return;
+  }
+
+  // Initialize empty tables for the new store
+  const storeData = {
+    name,
+    description: desc,
+    products: [],
+    components: [],
+    sales: [],
+    production: []
+  };
+
+  // Save to IndexedDB
+  await idbPut('stores', storeData);
+
+  // Clear inputs
+  nameInput.value = '';
+  descInput.value = '';
+
+  // Reload cards
   loadCards();
 }
 
