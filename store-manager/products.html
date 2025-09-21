@@ -170,7 +170,7 @@ function renderProducts(){
     const div=document.createElement('div'); div.className='prodCard';
     div.innerHTML=`
       <div class="prodName">${p.name}</div>
-      <div class="prodDetail">Brand: ${p.brand} | Category: ${p.category} | Sub: ${p.subcategory}</div>
+      <div class="prodDetail">Brand: ${p.brand} | Category: ${p.category} | Sub: ${typeof p.subcategory==='object'?p.subcategory.name:p.subcategory}</div>
       <div class="prodDetail">Price: $${p.price} | Cost: $${p.cost} | Qty: ${p.quantity}</div>
       ${p.warranty?`<div class="prodDetail">Warranty: ${p.serial} / ${p.warrantyDate}</div>`:''}
       ${p.expiration?`<div class="prodDetail">Exp: ${p.expirationDate} | Lot: ${p.lot}</div>`:''}
