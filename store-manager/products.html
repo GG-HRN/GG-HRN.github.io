@@ -92,7 +92,7 @@ request.onupgradeneeded = e=>{
 request.onsuccess = e=>{ db = e.target.result; loadAll(); };
 request.onerror = e=>{ console.error('IndexedDB error', e); };
 
-// ---------------- Element references ----------------
+// ---------------- Elements ----------------
 const prodForm = document.getElementById('prodForm');
 const prodName = document.getElementById('prodName');
 const prodBrand = document.getElementById('prodBrand');
@@ -127,7 +127,7 @@ chkExpiration.addEventListener('change',()=>{
   if(chkExpiration.checked){ chkWarranty.checked=false; warrantyFields.classList.add('hidden'); }
 });
 
-// ---------------- Load all data ----------------
+// ---------------- Load all options and products ----------------
 function loadAll(){
   loadOptions('brands',prodBrand);
   loadOptions('categories',prodCategory);
@@ -138,8 +138,7 @@ function loadAll(){
 function loadOptions(storeName,selectElem){
   const tx = db.transaction(storeName,'readonly');
   const store = tx.objectStore(storeName);
-  const req = store.getAll();
-  req.onsuccess = e=>{
+  store.getAll().onsuccess = e=>{
     selectElem.innerHTML='';
     e.target.result.forEach(item=>{
       const opt = document.createElement('option');
@@ -150,33 +149,44 @@ function loadOptions(storeName,selectElem){
   };
 }
 
-// ---------------- Products CRUD ----------------
+// ---------------- Ensure option exists in table ----------------
+function ensureOptionExists(storeName,value,callback){
+  if(!value) { callback(); return; }
+  const tx = db.transaction(storeName,'readwrite');
+  const store = tx.objectStore(storeName);
+  store.getAll().onsuccess = e=>{
+    const exists = e.target.result.some(i=>i.name===value);
+    if(!exists){ store.add({name:value}); tx.oncomplete=callback; }
+    else callback();
+  };
+}
+
+// ---------------- Load Products ----------------
 function loadProducts(){
   const tx = db.transaction('products','readonly');
   const store = tx.objectStore('products');
-  const req = store.getAll();
-  req.onsuccess = e=>{
+  store.getAll().onsuccess = e=>{
     products = e.target.result;
     applyFilters();
   };
 }
 
+// ---------------- Save / Delete Product ----------------
 function saveProduct(prod){
   const tx = db.transaction('products','readwrite');
-  const store = tx.objectStore('products');
-  store.put(prod);
-  tx.oncomplete = ()=>{ loadProducts(); };
+  tx.objectStore('products').put(prod);
+  tx.oncomplete = ()=> loadProducts();
 }
 
 function deleteProduct(id){
   if(confirm('Delete this product?')){
     const tx = db.transaction('products','readwrite');
     tx.objectStore('products').delete(id);
-    tx.oncomplete = ()=>{ loadProducts(); };
+    tx.oncomplete = ()=> loadProducts();
   }
 }
 
-// ---------------- Form Submission ----------------
+// ---------------- Form Submit ----------------
 prodForm.onsubmit = e=>{
   e.preventDefault();
   const newProd = {
@@ -195,12 +205,25 @@ prodForm.onsubmit = e=>{
     lot: prodLot.value.trim(),
     quantity: parseInt(prodQuantity.value)||1
   };
-
   if(!newProd.name || !newProd.brand || !newProd.category || !newProd.subcategory || !newProd.price || !newProd.cost){
     return alert('Fill all required fields');
   }
 
-  // ---------------- Duplication Rules ----------------
+  // ---------------- Insert new options if missing ----------------
+  ensureOptionExists('brands', newProd.brand, ()=>{
+    ensureOptionExists('categories', newProd.category, ()=>{
+      ensureOptionExists('subcategories', newProd.subcategory, ()=>{
+        addOrUpdateProduct(newProd);
+        prodForm.reset();
+        warrantyFields.classList.add('hidden');
+        expirationFields.classList.add('hidden');
+      });
+    });
+  });
+};
+
+// ---------------- Add or update product ----------------
+function addOrUpdateProduct(newProd){
   let existingIndex=-1;
   if(newProd.warranty){
     newProd.quantity=1;
@@ -224,13 +247,9 @@ prodForm.onsubmit = e=>{
   } else {
     saveProduct(newProd);
   }
+}
 
-  prodForm.reset();
-  warrantyFields.classList.add('hidden');
-  expirationFields.classList.add('hidden');
-};
-
-// ---------------- Display ----------------
+// ---------------- Search & Pagination ----------------
 prodSearch.addEventListener('input',()=>{ currentPage=1; applyFilters(); });
 
 function applyFilters(){
