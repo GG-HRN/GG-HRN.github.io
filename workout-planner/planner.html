@@ -143,11 +143,23 @@ function addExercise(){
   const sets = parseInt(document.getElementById("sets").value) || 0;
   const reps = parseInt(document.getElementById("reps").value) || 0;
   const weight = parseFloat(document.getElementById("weight").value) || 0;
-  if(!name || sets<=0 || reps<=0) return alert("Completa nombre, sets y reps");
+
+  if(!name || sets<=0 || reps<=0){
+    return alert("Completa nombre, sets y reps");
+  }
+
+  // 🔑 asegurar que el día existe
+  if (!routine[day]) {
+    routine[day] = [];
+  }
+
   routine[day].push({name, sets, reps, weight});
+
   addExerciseToDB(name);
   saveRoutine();
   renderWeek();
+
+  // limpiar inputs
   document.getElementById("exerciseInput").value="";
   document.getElementById("sets").value="";
   document.getElementById("reps").value="";
