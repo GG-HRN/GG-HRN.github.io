@@ -70,17 +70,22 @@ function loadRoutine(){
   return new Promise(resolve=>{
     const tx = getStore("routines");
     const req = tx.get(activeRoutine);
+
     req.onsuccess = ()=>{
       if(req.result && req.result.days){
         routine = req.result.days;
+        resolve();
       } else {
-        // inicializar días
+        // inicializar 7 días y guardar
         routine = {};
         daysOfWeek.forEach(d=> routine[d]=[]);
-        saveRoutine(); // guardar inmediatamente la nueva rutina
+        const tx2 = getStore("routines","readwrite");
+        const putReq = tx2.put({name:activeRoutine,days:routine});
+        putReq.onsuccess = ()=> resolve();
+        putReq.onerror = ()=> resolve();
       }
-      resolve();
     };
+    req.onerror = ()=> resolve();
   });
 }
 
