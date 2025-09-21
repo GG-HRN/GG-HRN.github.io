@@ -1,201 +1,237 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Workout Planner</title>
-<style>
-body { margin:0; font-family:system-ui,sans-serif; background:#0f1724; color:#f1f5f9; display:flex; justify-content:center; padding:20px; }
-.app { width:100%; max-width:900px; background:#1e293b; padding:20px; border-radius:12px; }
-h1 { text-align:center; margin-bottom:15px; }
-.input-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px; position:relative; }
-input, select, button { padding:8px; border-radius:8px; border:none; font-size:14px; }
-button { cursor:pointer; font-weight:600; }
-button.add-btn { background:#6366f1; color:#fff; }
-button.export-btn { background:#14b8a6; color:#fff; }
-button.import-btn { background:#f59e0b; color:#fff; }
-.week { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:12px; }
-.day { background:#334155; padding:12px; border-radius:8px; }
-.day h3 { margin:0 0 8px; font-size:16px; border-bottom:1px solid #475569; padding-bottom:4px; }
-.exercise { background:#475569; margin-bottom:6px; padding:6px; border-radius:6px; font-size:14px; }
-.exercise span { display:block; }
-.actions button { background:transparent; color:#f1f5f9; font-size:12px; margin-top:4px; margin-right:4px; cursor:pointer; }
-.autocomplete-list { position:absolute; top:40px; left:0; right:0; background:#475569; border-radius:8px; max-height:150px; overflow:auto; z-index:10; }
-.autocomplete-item { padding:6px; cursor:pointer; }
-.autocomplete-item:hover { background:#6366f1; }
-</style>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Planner">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  body{margin:0;font-family:system-ui,Arial;background:#0f1724;color:#fff;display:flex;justify-content:center;padding:20px}
+  .app{width:100%;max-width:900px;background:#1e293b;padding:20px;border-radius:12px}
+  h1{text-align:center;margin-bottom:12px}
+  .input-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;position:relative}
+  input,select,button{padding:8px;border-radius:8px;border:0;font-size:14px}
+  button.add-btn{background:#6366f1;color:#fff;font-weight:700}
+  .week{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+  .day{background:#334155;padding:12px;border-radius:8px}
+  .exercise{background:#475569;margin-bottom:6px;padding:6px;border-radius:6px;font-size:14px}
+  .autocomplete-list{position:absolute;top:40px;left:0;right:0;background:#475569;border-radius:8px;max-height:150px;overflow:auto;z-index:10}
+  .autocomplete-item{padding:6px;cursor:pointer}
+  .autocomplete-item:hover{background:#6366f1}
+</style>
 </head>
 <body>
-<div class="app">
-  <h1>💪 Workout Planner</h1>
-  <div class="input-row">
-    <select id="daySelect"></select>
-    <div style="flex:1; position:relative;">
-      <input type="text" id="exerciseInput" placeholder="Ejercicio" oninput="showSuggestions()">
-      <div id="autocomplete" class="autocomplete-list"></div>
+  <div class="app">
+    <h1>💪 Workout Planner</h1>
+    <div class="input-row">
+      <select id="daySelect"></select>
+      <div style="flex:1;position:relative">
+        <input id="exerciseInput" placeholder="Ejercicio" oninput="showSuggestions()">
+        <div id="autocomplete" class="autocomplete-list"></div>
+      </div>
+      <input id="sets" type="number" placeholder="Sets" style="width:66px">
+      <input id="reps" type="number" placeholder="Reps" style="width:66px">
+      <input id="weight" type="number" placeholder="Kg" style="width:66px">
+      <button class="add-btn" id="addBtn">Agregar</button>
     </div>
-    <input type="number" id="sets" placeholder="Sets" style="width:60px">
-    <input type="number" id="reps" placeholder="Reps" style="width:60px">
-    <input type="number" id="weight" placeholder="Kg" style="width:60px">
-    <button class="add-btn" onclick="addExercise()">Agregar</button>
+
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <button onclick="exportJSON()" style="background:#14b8a6;color:#fff;padding:8px;border-radius:8px">Exportar JSON</button>
+      <button onclick="document.getElementById('fileInput').click()" style="background:#f59e0b;color:#fff;padding:8px;border-radius:8px">Importar JSON</button>
+      <input id="fileInput" type="file" accept="application/json" style="display:none" onchange="importJSON(event)">
+    </div>
+
+    <div id="week" class="week"></div>
   </div>
-  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-    <button class="export-btn" onclick="exportJSON()">Exportar JSON</button>
-    <button class="import-btn" onclick="document.getElementById('fileInput').click()">Importar JSON</button>
-    <input type="file" id="fileInput" accept="application/json" style="display:none" onchange="importJSON(event)">
-  </div>
-  <div class="week" id="week"></div>
-</div>
 
 <script>
-const activeRoutine = localStorage.getItem("activeRoutine") || "Default";
+/* ---- IndexedDB wrapper ---- */
+const DB_NAME = 'WorkoutPlannerDB';
+const DB_VERSION = 1;
+let _db = null;
+async function openDB(){
+  if(_db) return _db;
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains('routines')) db.createObjectStore('routines', { keyPath:'name' });
+      if(!db.objectStoreNames.contains('exercises')) db.createObjectStore('exercises', { keyPath:'name' });
+    };
+    req.onsuccess = e => { _db = e.target.result; res(_db); };
+    req.onerror = e => rej(e.target.error);
+  });
+}
+async function idbGet(storeName, key){
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(storeName, 'readonly');
+    const req = tx.objectStore(storeName).get(key);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbGetAll(storeName){
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(storeName, 'readonly');
+    const req = tx.objectStore(storeName).getAll();
+    req.onsuccess = () => res(req.result || []);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbPut(storeName, value){
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const req = tx.objectStore(storeName).put(value);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+
+/* ---- App state ---- */
+const activeRoutine = localStorage.getItem('activeRoutine') || 'Default';
 const daysOfWeek = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-let db, routine = {}, allExercises = [];
+let routine = {};           // { dayName: [exercises...] }
+let allExercises = [];      // list of exercise names
 
-const request = indexedDB.open("WorkoutPlannerDB",1);
-request.onupgradeneeded = e => {
-  db = e.target.result;
-  if(!db.objectStoreNames.contains("routines")) db.createObjectStore("routines",{keyPath:"name"});
-  if(!db.objectStoreNames.contains("exercises")) db.createObjectStore("exercises",{keyPath:"name"});
-};
-request.onsuccess = e => { db = e.target.result; init(); };
-function getStore(store,mode="readonly"){ return db.transaction(store,mode).objectStore(store); }
-
-function loadRoutine(){
-  return new Promise(resolve=>{
-    const tx = getStore("routines");
-    const req = tx.get(activeRoutine);
-    req.onsuccess = ()=>{
-      // Si existe, usamos los días guardados
-      if(req.result && req.result.days){
-        routine = req.result.days;
-      } else {
-        // Si no existe, creamos los 7 días inmediatamente en memoria
-        routine = {};
-        daysOfWeek.forEach(d=> routine[d]=[]);
-        // Guardamos en IndexedDB (no bloquea render)
-        const tx2 = getStore("routines","readwrite");
-        tx2.put({name:activeRoutine, days: routine});
-      }
-      // Renderizamos de inmediato
-      renderWeek();
-      resolve();
-    };
-    req.onerror = ()=>{
-      routine = {};
-      daysOfWeek.forEach(d=> routine[d]=[]);
-      renderWeek();
-      resolve();
-    };
+/* ---- Init ---- */
+document.getElementById('addBtn').addEventListener('click', onAddClick);
+async function init(){
+  // fill day select
+  const daySelect = document.getElementById('daySelect');
+  daySelect.innerHTML = '';
+  daysOfWeek.forEach(d => {
+    const o = document.createElement('option');
+    o.value = d; o.textContent = d;
+    daySelect.appendChild(o);
   });
-}
 
-function saveRoutine(){
-  const tx = getStore("routines","readwrite");
-  tx.put({name:activeRoutine, days:routine});
+  await openDB();
+  await ensureRoutineExistsAndLoad();
+  await loadExercises();
+  renderWeek();
 }
-
-function loadExercises(){
-  return new Promise(resolve=>{
-    const tx = getStore("exercises");
-    const req = tx.getAll();
-    req.onsuccess = ()=>{ allExercises = req.result.map(e=>e.name); resolve(); };
-  });
-}
-
-function addExerciseToDB(name){
-  if(!allExercises.includes(name)){
-    allExercises.push(name);
-    const tx = getStore("exercises","readwrite");
-    tx.put({name});
+async function ensureRoutineExistsAndLoad(){
+  // always create an in-memory structure first so UI is immediate
+  const stored = await idbGet('routines', activeRoutine);
+  if(stored && stored.days){
+    routine = stored.days;
+  } else {
+    // create 7 days in memory
+    routine = {};
+    daysOfWeek.forEach(d => routine[d] = []);
+    // but also write to idb (don't wait blocking UI)
+    try { await idbPut('routines', { name: activeRoutine, days: routine }); } catch(e){ console.warn('write initial routine failed', e); }
   }
 }
-
-function init(){
-  const daySelect = document.getElementById("daySelect");
-  daysOfWeek.forEach(d=> daySelect.innerHTML += `<option value="${d}">${d}</option>`);
-  Promise.all([loadRoutine(), loadExercises()]);
+/* load known exercises */
+async function loadExercises(){
+  const list = await idbGetAll('exercises');
+  allExercises = list.map(x=>x.name);
 }
 
+/* ---- Autocomplete ---- */
 function showSuggestions(){
-  const query = document.getElementById("exerciseInput").value.toLowerCase();
-  const box = document.getElementById("autocomplete");
-  box.innerHTML="";
-  if(!query) return;
-  const matches = allExercises.filter(e=>e.toLowerCase().includes(query));
-  matches.forEach(m=>{
-    const div = document.createElement("div");
-    div.className="autocomplete-item";
-    div.textContent=m;
-    div.onclick=()=>{ document.getElementById("exerciseInput").value=m; box.innerHTML=""; };
+  const q = document.getElementById('exerciseInput').value.trim().toLowerCase();
+  const box = document.getElementById('autocomplete');
+  box.innerHTML = '';
+  if(!q) return;
+  allExercises.filter(n => n.toLowerCase().includes(q)).slice(0,50).forEach(n=>{
+    const div = document.createElement('div');
+    div.className = 'autocomplete-item';
+    div.textContent = n;
+    div.onclick = ()=>{ document.getElementById('exerciseInput').value = n; box.innerHTML=''; };
     box.appendChild(div);
   });
 }
 
-function addExercise(){
-  const day = document.getElementById("daySelect").value;
-  const name = document.getElementById("exerciseInput").value.trim();
-  const sets = parseInt(document.getElementById("sets").value) || 0;
-  const reps = parseInt(document.getElementById("reps").value) || 0;
-  const weight = parseFloat(document.getElementById("weight").value) || 0;
+/* ---- Add exercise (robust) ---- */
+let adding = false;
+async function onAddClick(e){
+  if(adding) return;         // prevent double-click flood
+  adding = true;
+  try {
+    await addExercise();
+  } finally {
+    adding = false;
+  }
+}
+async function addExercise(){
+  const day = document.getElementById('daySelect').value;
+  const name = document.getElementById('exerciseInput').value.trim();
+  const sets = parseInt(document.getElementById('sets').value) || 0;
+  const reps = parseInt(document.getElementById('reps').value) || 0;
+  const weight = parseFloat(document.getElementById('weight').value) || 0;
+  if(!name || sets<=0 || reps<=0) { alert('Completa nombre, sets y reps'); return; }
 
-  if(!name || sets<=0 || reps<=0){
-    return alert("Completa nombre, sets y reps");
+  // ensure day exists in memory (guarantee)
+  if(!routine[day]) routine[day] = [];
+
+  // push to memory
+  routine[day].push({ name, sets, reps, weight });
+
+  // persist: update routine record then exercises store
+  try{
+    await idbPut('routines', { name: activeRoutine, days: routine });
+    // add exercise name to exercises store (idempotent)
+    if(!allExercises.includes(name)){
+      await idbPut('exercises', { name });
+      allExercises.push(name);
+    }
+  } catch(err){
+    console.warn('DB put failed', err);
   }
 
-  // 🔑 asegurar que el día existe
-  if (!routine[day]) {
-    routine[day] = [];
+  renderWeek();
+
+  // clear inputs
+  document.getElementById('exerciseInput').value='';
+  document.getElementById('sets').value='';
+  document.getElementById('reps').value='';
+  document.getElementById('weight').value='';
+  document.getElementById('autocomplete').innerHTML='';
+}
+
+/* ---- Edit / Delete ---- */
+async function editExercise(day, idx){
+  const ex = routine[day][idx];
+  const newName = prompt('Ejercicio:', ex.name); if(!newName) return;
+  const newSets = parseInt(prompt('Sets:', ex.sets)); if(!newSets) return;
+  const newReps = parseInt(prompt('Reps:', ex.reps)); if(!newReps) return;
+  const newWeight = parseFloat(prompt('Peso:', ex.weight)) || 0;
+  routine[day][idx] = { name: newName, sets:newSets, reps:newReps, weight:newWeight };
+  try{ await idbPut('routines', { name: activeRoutine, days: routine }); } catch(e){ console.warn(e); }
+  // add to exercises store if new
+  if(!allExercises.includes(newName)){
+    try{ await idbPut('exercises', { name: newName }); allExercises.push(newName); } catch(e){ console.warn(e); }
   }
-
-  routine[day].push({name, sets, reps, weight});
-
-  addExerciseToDB(name);
-  saveRoutine();
   renderWeek();
-
-  // limpiar inputs
-  document.getElementById("exerciseInput").value="";
-  document.getElementById("sets").value="";
-  document.getElementById("reps").value="";
-  document.getElementById("weight").value="";
-  document.getElementById("autocomplete").innerHTML="";
 }
-
-function editExercise(day,i){
-  const ex = routine[day][i];
-  const newName = prompt("Ejercicio:", ex.name); if(!newName) return;
-  const newSets = parseInt(prompt("Sets:", ex.sets)); if(!newSets) return;
-  const newReps = parseInt(prompt("Reps:", ex.reps)); if(!newReps) return;
-  const newWeight = parseFloat(prompt("Peso:", ex.weight)) || 0;
-  routine[day][i]={name:newName, sets:newSets, reps:newReps, weight:newWeight};
-  addExerciseToDB(newName);
-  saveRoutine();
+async function deleteExercise(day, idx){
+  routine[day].splice(idx, 1);
+  try{ await idbPut('routines', { name: activeRoutine, days: routine }); } catch(e){ console.warn(e); }
   renderWeek();
 }
 
-function deleteExercise(day,i){
-  routine[day].splice(i,1);
-  saveRoutine();
-  renderWeek();
-}
-
+/* ---- Render ---- */
 function renderWeek(){
-  const weekDiv = document.getElementById("week");
-  weekDiv.innerHTML="";
+  const week = document.getElementById('week');
+  week.innerHTML = '';
   daysOfWeek.forEach(day=>{
-    const dayDiv = document.createElement("div");
-    dayDiv.className="day";
-    dayDiv.innerHTML=`<h3>${day}</h3>`;
-    routine[day].forEach((ex,i)=>{
-      const exDiv = document.createElement("div");
-      exDiv.className="exercise";
-      exDiv.innerHTML=`
+    const dayDiv = document.createElement('div');
+    dayDiv.className = 'day';
+    dayDiv.innerHTML = `<h3>${day}</h3>`;
+    const list = (routine[day] && routine[day].length) ? routine[day] : [];
+    list.forEach((ex, i) => {
+      const exDiv = document.createElement('div');
+      exDiv.className = 'exercise';
+      exDiv.innerHTML = `
         <span><b>${ex.name}</b></span>
         <span>${ex.sets} x ${ex.reps} @ ${ex.weight}kg</span>
         <div class="actions">
@@ -205,35 +241,45 @@ function renderWeek(){
       `;
       dayDiv.appendChild(exDiv);
     });
-    weekDiv.appendChild(dayDiv);
+    week.appendChild(dayDiv);
   });
 }
 
+/* ---- Export / Import ---- */
 function exportJSON(){
-  const data = JSON.stringify(routine,null,2);
-  const blob = new Blob([data], {type:"application/json"});
-  const a = document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=`${activeRoutine}.json`;
+  const blob = new Blob([JSON.stringify(routine, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${activeRoutine}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
-
-function importJSON(event){
-  const file = event.target.files[0];
-  if(!file) return;
+async function importJSON(e){
+  const file = e.target.files[0]; if(!file) return;
   const reader = new FileReader();
-  reader.onload = e=>{
+  reader.onload = async ev => {
     try{
-      routine=JSON.parse(e.target.result);
-      saveRoutine();
+      const data = JSON.parse(ev.target.result);
+      // simple validation: expect object with day keys
+      const isValid = daysOfWeek.every(d => data.hasOwnProperty(d));
+      if(!isValid) return alert('Formato inválido: el JSON debe contener los 7 días como claves');
+      routine = data;
+      await idbPut('routines', { name: activeRoutine, days: routine });
       renderWeek();
-    }catch(err){ alert("Archivo inválido"); }
+    }catch(err){ alert('Archivo inválido'); }
   };
   reader.readAsText(file);
 }
 
-if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js"); }
+/* ---- Service Worker register (scope to folder) ---- */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js', { scope: './' })
+    .then(()=> console.log('SW registered (planner)'))
+    .catch(e=> console.warn('SW register failed', e));
+}
+
+/* ---- start ---- */
+init();
 </script>
 </body>
 </html>
