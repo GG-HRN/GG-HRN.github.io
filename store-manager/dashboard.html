@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Store Dashboard</title>
 
-<!-- PWA -->
+<!-- PWA basics -->
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -16,269 +16,85 @@
 <link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
 
 <style>
-  :root{
-    --bg:#0f1724;
-    --card:#1e293b;
-    --muted:#cbd5e1;
-    --accent:#6366f1;
-    --danger:#ef4444;
-    --warn:#fbbf24;
-    --ok:#34d399;
-  }
-  html,body{height:100%;margin:0;font-family:system-ui,Arial;background:var(--bg);color:#fff;-webkit-font-smoothing:antialiased}
+  body{margin:0;font-family:sans-serif;background:#0f1724;color:#fff;}
   header{
     display:flex;align-items:center;gap:12px;
-    padding:12px 16px;background:#0b1220;position:sticky;top:0;z-index:20;
-    box-shadow:0 1px 0 rgba(255,255,255,0.02);
+    padding:12px 16px;background:#0b1220;color:#fff;
+    position:sticky;top:0;z-index:20;
   }
-  #menuBtn{background:var(--accent);border:0;color:#fff;padding:8px 10px;border-radius:8px;font-weight:700;cursor:pointer}
+  #menuBtn{
+    background:#6366f1;border:0;color:#fff;
+    padding:8px 10px;border-radius:8px;font-weight:700;cursor:pointer;
+  }
   #headerTitle{flex:1;text-align:center;font-size:16px;font-weight:700}
-  main{padding:16px}
 
   /* Sidebar */
   #sidebar{
-    position:fixed;top:0;left:-260px;width:260px;height:100vh;background:#0b1220;border-right:1px solid rgba(255,255,255,0.02);
-    transition:left .28s ease;z-index:30;padding-top:64px;box-sizing:border-box;
+    position:fixed;top:0;left:-260px;width:260px;height:100vh;background:#111827;
+    transition:left .3s ease;z-index:30;padding-top:64px;box-sizing:border-box;
   }
   #sidebar.active{left:0}
   #sidebar ul{list-style:none;padding:0;margin:0}
-  #sidebar ul li{padding:14px 18px;color:#fff;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.02)}
-  #sidebar ul li:hover{background:#111827}
+  #sidebar ul li{padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.1);cursor:pointer}
+  #sidebar ul li:hover{background:#1e293b}
 
-  /* overlay */
+  /* Overlay */
   #overlay{
     display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:25;
   }
   #overlay.active{display:block}
-
-  /* Advisories */
-  .adv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
-  .advice{
-    background:var(--card);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);
-    font-size:14px;color:var(--muted);
-  }
-  .advice strong{color:var(--danger);margin-right:6px}
-  .ok{color:var(--ok);text-align:center;padding:12px;background:transparent}
-
-  /* small screens: make overlay comfortable for taps */
-  @media (max-width:420px){
-    #sidebar{width:85vw}
-  }
 </style>
 </head>
 <body>
   <header>
-    <button id="menuBtn" aria-label="Open menu">☰</button>
+    <button id="menuBtn">☰</button>
     <div id="headerTitle">Store Dashboard</div>
   </header>
 
-  <div id="sidebar" aria-hidden="true">
+  <div id="sidebar">
     <ul>
       <li data-nav="products.html">Products</li>
       <li data-nav="categories.html">Categories</li>
-      <li data-nav="brands.html">Brands</li>
-      <li data-nav="subcategories.html">Subcategories</li>
-      <li data-nav="components.html">Components</li>
-      <li data-nav="sales.html">Sales</li>
-      <li data-nav="production.html">Production</li>
       <li data-nav="index.html">Back to Stores</li>
     </ul>
   </div>
 
-  <div id="overlay" tabindex="-1" aria-hidden="true"></div>
+  <div id="overlay"></div>
 
-  <main>
-    <h2 id="storeTitle">Dashboard</h2>
-    <div id="advisoriesArea">
-      <!-- advisories injected here -->
-    </div>
+  <main style="padding:16px">
+    <h2>Dashboard</h2>
+    <p>This is a simplified version — only testing sidebar open/close.</p>
   </main>
 
 <script>
-/* ---- IndexedDB helper ---- */
-const DB_NAME = 'StoresDB';
-const DB_VERSION = 1;
-let _db = null;
-function openDB(){
-  if(_db) return Promise.resolve(_db);
-  return new Promise((res, rej) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if(!db.objectStoreNames.contains('stores')) db.createObjectStore('stores', { keyPath: 'name' });
-    };
-    req.onsuccess = e => { _db = e.target.result; res(_db); };
-    req.onerror = e => rej(e.target.error);
-  });
-}
-async function idbGet(store, key){
-  const db = await openDB();
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, 'readonly');
-    const req = tx.objectStore(store).get(key);
-    req.onsuccess = () => res(req.result);
-    req.onerror = () => rej(req.error);
-  });
-}
+document.addEventListener("DOMContentLoaded",()=>{
+  const sidebar=document.getElementById("sidebar");
+  const overlay=document.getElementById("overlay");
+  const menuBtn=document.getElementById("menuBtn");
 
-/* ---- Sidebar logic and navigation ---- */
-document.addEventListener('DOMContentLoaded', () => {
-  const sidebar = document.getElementById('sidebar');
-  const overlay = document.getElementById('overlay');
-  const menuBtn = document.getElementById('menuBtn');
-  const headerTitle = document.getElementById('headerTitle');
-  const storeTitle = document.getElementById('storeTitle');
-
-  // Ensure store title is shown
-  const storeName = localStorage.getItem('activeStore');
-  if(storeName){
-    headerTitle.textContent = storeName;
-    storeTitle.textContent = `Dashboard — ${storeName}`;
-  } else {
-    headerTitle.textContent = 'No store selected';
-    storeTitle.textContent = 'No store selected';
-  }
-
-  // Open sidebar
   function openSidebar(){
-    sidebar.classList.add('active');
-    overlay.classList.add('active');
-    sidebar.setAttribute('aria-hidden','false');
-    overlay.setAttribute('aria-hidden','false');
-    menuBtn.style.display = 'none';
-    // prevent body scroll while sidebar open (mobile)
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overflow = 'hidden';
+    sidebar.classList.add("active");
+    overlay.classList.add("active");
+    menuBtn.style.display="none";
   }
-
-  // Close sidebar
   function closeSidebar(){
-    sidebar.classList.remove('active');
-    overlay.classList.remove('active');
-    sidebar.setAttribute('aria-hidden','true');
-    overlay.setAttribute('aria-hidden','true');
-    menuBtn.style.display = '';
-    document.documentElement.style.overflow = '';
-    document.body.style.overflow = '';
+    sidebar.classList.remove("active");
+    overlay.classList.remove("active");
+    menuBtn.style.display="";
   }
 
-  menuBtn.addEventListener('click', openSidebar);
-  overlay.addEventListener('click', closeSidebar);
-  overlay.addEventListener('touchstart', closeSidebar);
-
-  // Close on Escape
-  document.addEventListener('keydown', (e) => {
-    if(e.key === 'Escape') closeSidebar();
+  menuBtn.addEventListener("click",openSidebar);
+  overlay.addEventListener("click",closeSidebar);
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape") closeSidebar();
   });
-
-  // Sidebar navigation items
-  sidebar.querySelectorAll('li[data-nav]').forEach(li => {
-    li.addEventListener('click', (ev) => {
-      const url = li.getAttribute('data-nav');
-      closeSidebar(); // close immediately
-      // small timeout to allow close animation (optional)
-      setTimeout(()=> {
-        window.location.href = url;
-      }, 150);
+  sidebar.querySelectorAll("li[data-nav]").forEach(li=>{
+    li.addEventListener("click",()=>{
+      closeSidebar();
+      setTimeout(()=>{ window.location.href=li.getAttribute("data-nav"); },200);
     });
   });
-
-  // Initialize advisory rendering
-  renderAdvisories();
 });
-
-/* ---- Advisory logic ---- */
-async function renderAdvisories(){
-  const advRoot = document.getElementById('advisoriesArea');
-  advRoot.innerHTML = ''; // clear
-
-  const activeStore = localStorage.getItem('activeStore');
-  if(!activeStore){
-    advRoot.innerHTML = `<div class="advice"><strong>Notice:</strong> No active store selected. Go back to Stores and choose a store.</div>`;
-    return;
-  }
-
-  try {
-    const store = await idbGet('stores', activeStore);
-    if(!store){
-      advRoot.innerHTML = `<div class="advice"><strong>Error:</strong> Store "${activeStore}" not found.</div>`;
-      return;
-    }
-
-    const advisories = [];
-    const today = new Date();
-
-    // Check categories/brands/subcategories existence
-    if(!Array.isArray(store.categories) || store.categories.length === 0){
-      advisories.push('No categories defined yet.');
-    }
-    if(!Array.isArray(store.brands) || store.brands.length === 0){
-      advisories.push('No brands defined yet.');
-    }
-    if(!Array.isArray(store.subcategories) || store.subcategories.length === 0){
-      advisories.push('No subcategories defined yet.');
-    }
-
-    // Products advisories
-    const products = Array.isArray(store.products) ? store.products : [];
-    if(products.length === 0){
-      advisories.push('No products created yet.');
-    } else {
-      // low stock threshold can be per-product minStock or global default (we use 2)
-      let lowCount = 0;
-      products.forEach(p => {
-        const totalStock = (Array.isArray(p.batches) ? p.batches.reduce((s,b)=>s + (b.quantity||0), 0) : (p.stock || 0));
-        const min = p.minStock !== undefined ? p.minStock : 2;
-        if(totalStock <= min) lowCount++;
-        // batch-level checks
-        if(Array.isArray(p.batches)){
-          p.batches.forEach(b => {
-            if(b.expiration){
-              const exp = new Date(b.expiration);
-              if(!isNaN(exp) && exp < today) advisories.push(`${p.name} — batch ${b.lot || b.serial || '(no id)'} has expired`);
-            }
-            if(b.warranty){
-              const w = new Date(b.warranty);
-              if(!isNaN(w) && w < today) advisories.push(`${p.name} — batch ${b.lot || b.serial || '(no id)'} warranty expired`);
-            }
-            if(b.defective) advisories.push(`${p.name} — batch ${b.lot || b.serial || '(no id)'} marked defective`);
-          });
-        }
-      });
-      if(lowCount > 0) advisories.unshift(`${lowCount} product(s) low on stock.`);
-    }
-
-    // Render advisories
-    if(advisories.length === 0){
-      advRoot.innerHTML = `<div class="ok">All products are OK.</div>`;
-    } else {
-      const frag = document.createDocumentFragment();
-      advisories.forEach(msg => {
-        const d = document.createElement('div');
-        d.className = 'advice';
-        d.innerHTML = `<strong>Notice:</strong> ${escapeHtml(msg)}`;
-        frag.appendChild(d);
-      });
-      advRoot.appendChild(frag);
-    }
-
-  } catch(err){
-    console.error(err);
-    advRoot.innerHTML = `<div class="advice"><strong>Error:</strong> Could not read store data.</div>`;
-  }
-}
-
-/* ---- Utilities ---- */
-function escapeHtml(str){
-  return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[s]));
-}
-
-/* ---- Service worker registration ---- */
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js', { scope: './' })
-    .then(()=> console.log('SW registered (dashboard)'))
-    .catch(e=> console.warn('SW failed', e));
-}
 </script>
 </body>
 </html>
