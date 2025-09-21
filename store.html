@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Store Manager</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Store Manager">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+body{margin:0;font-family:system-ui,Arial;background:#0f1724;color:#fff;display:flex;flex-direction:column;align-items:center;padding:20px}
+h1{text-align:center;margin-bottom:20px}
+#cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;width:100%;max-width:800px;margin-bottom:20px}
+.card{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;background:#1e293b;padding:15px;border-radius:12px;cursor:pointer;transition:0.2s}
+.card:hover{background:#374151}
+.card h2{margin:0;font-size:16px;word-break:break-word;text-align:center}
+.card p{font-size:12px;color:#cbd5e1;text-align:center}
+.new-row{display:flex;width:100%;max-width:400px;gap:8px;margin-bottom:20px}
+.new-row input{flex:1;padding:10px;border-radius:8px;border:0;font-size:16px}
+.new-row button{padding:10px;border-radius:8px;border:0;background:#6366f1;color:#fff;font-weight:700;font-size:16px}
+</style>
+</head>
+<body>
+<h1>🏬 My Stores</h1>
+
+<div id="cards"></div>
+
+<div class="new-row">
+  <input id="storeName" placeholder="Store name">
+  <input id="storeDesc" placeholder="Description">
+  <button id="createBtn">Create</button>
+</div>
+
+<script>
+/* --- IndexedDB helper --- */
+const DB_NAME = 'StoresDB';
+const DB_VERSION = 1;
+let dbPromise;
+
+function openDB(){
+  if(dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve,reject)=>{
+    const req=indexedDB.open(DB_NAME,DB_VERSION);
+    req.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains('stores')) db.createObjectStore('stores',{keyPath:'name'});
+    };
+    req.onsuccess=e=>resolve(e.target.result);
+    req.onerror=e=>reject(e.target.error);
+  });
+  return dbPromise;
+}
+
+async function idbGetAll(store){
+  const db = await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readonly');
+    const req=tx.objectStore(store).getAll();
+    req.onsuccess=()=>res(req.result || []);
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+async function idbGet(store,key){
+  const db = await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readonly');
+    const req=tx.objectStore(store).get(key);
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+async function idbPut(store,value){
+  const db = await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readwrite');
+    const req=tx.objectStore(store).put(value);
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+/* --- UI logic --- */
+const cardsDiv = document.getElementById('cards');
+const nameInput = document.getElementById('storeName');
+const descInput = document.getElementById('storeDesc');
+document.getElementById('createBtn').addEventListener('click', createStore);
+
+async function loadCards(){
+  cardsDiv.innerHTML='';
+  const stores = await idbGetAll('stores');
+  stores.forEach(s=>{
+    const div = document.createElement('div');
+    div.className='card';
+    div.innerHTML=`
+      <h2>${s.name}</h2>
+      <p>${s.description}</p>
+    `;
+    div.onclick=()=>openStore(s.name);
+    cardsDiv.appendChild(div);
+  });
+}
+
+async function createStore(){
+  const name = nameInput.value.trim();
+  const desc = descInput.value.trim();
+  if(!name) return alert('Enter a store name');
+  const existing = await idbGet('stores',name);
+  if(existing){ alert('Store already exists'); return; }
+  await idbPut('stores',{ name, description: desc });
+  nameInput.value='';
+  descInput.value='';
+  loadCards();
+}
+
+function openStore(name){
+  localStorage.setItem('activeStore',name);
+  // later will open the detailed store manager page
+  alert('Opening store: '+name);
+}
+
+/* --- Service Worker --- */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js',{scope:'./'})
+    .then(()=>console.log('SW registered'))
+    .catch(e=>console.warn('SW failed',e));
+}
+
+/* --- Init --- */
+loadCards();
+</script>
+</body>
+</html>
