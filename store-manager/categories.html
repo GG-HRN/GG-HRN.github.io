@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Categories</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Categories">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#1e293b">
+<link rel="icon" href="icons/favicon-32x32.png" sizes="32x32">
+<link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
+
+<style>
+  body{margin:0;font-family:sans-serif;background:#0f1724;color:#fff;}
+  header{
+    display:flex;align-items:center;gap:12px;
+    padding:12px 16px;background:#0b1220;color:#fff;
+    position:sticky;top:0;z-index:20;
+  }
+  #backBtn{
+    background:#6366f1;border:0;color:#fff;
+    padding:6px 10px;border-radius:6px;font-weight:700;cursor:pointer;
+  }
+  #headerTitle{flex:1;text-align:center;font-size:16px;font-weight:700}
+
+  main{padding:16px}
+
+  form{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+  input,textarea,button{padding:10px;font-size:15px;border-radius:6px;border:none;box-sizing:border-box}
+  input,textarea{width:100%}
+  textarea{resize:vertical;min-height:60px}
+  button{cursor:pointer;font-weight:700}
+  button.add{background:#10b981;color:#fff}
+  button.update{background:#f59e0b;color:#fff}
+  button.delete{background:#ef4444;color:#fff}
+
+  .catCard{
+    background:#1e293b;padding:12px;border-radius:8px;margin-bottom:10px;
+    display:flex;justify-content:space-between;align-items:center
+  }
+  .catInfo{flex:1}
+  .catName{font-weight:bold;display:block;margin-bottom:4px}
+  .actions button{margin-left:6px}
+</style>
+</head>
+<body>
+<header>
+  <button id="backBtn">←</button>
+  <div id="headerTitle">Categories</div>
+</header>
+
+<main>
+  <form id="catForm">
+    <input type="text" id="catName" placeholder="Enter category name"/>
+    <textarea id="catDesc" placeholder="Optional description"></textarea>
+    <button type="submit" class="add">Add Category</button>
+  </form>
+
+  <div id="catList"></div>
+</main>
+
+<script>
+/* ---- IndexedDB helpers ---- */
+const DB_NAME='StoresDB',DB_VERSION=1;let dbPromise;
+function openDB(){
+  if(dbPromise) return dbPromise;
+  dbPromise=new Promise((res,rej)=>{
+    const req=indexedDB.open(DB_NAME,DB_VERSION);
+    req.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains('stores'))
+        db.createObjectStore('stores',{keyPath:'name'});
+    };
+    req.onsuccess=e=>res(e.target.result);
+    req.onerror=e=>rej(e.target.error);
+  });
+  return dbPromise;
+}
+async function idbGet(store,key){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readonly');
+    const req=tx.objectStore(store).get(key);
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+async function idbPut(store,value){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readwrite');
+    tx.objectStore(store).put(value);
+    tx.oncomplete=()=>res();
+    tx.onerror=()=>rej(tx.error);
+  });
+}
+
+/* ---- Logic ---- */
+const storeName=localStorage.getItem('activeStore');
+let currentStore;
+
+const catForm=document.getElementById('catForm');
+const catName=document.getElementById('catName');
+const catDesc=document.getElementById('catDesc');
+const catList=document.getElementById('catList');
+const backBtn=document.getElementById('backBtn');
+
+backBtn.addEventListener('click',()=>window.location.href="dashboard.html");
+
+async function loadStore(){
+  if(!storeName){alert("No active store");return;}
+  currentStore=await idbGet('stores',storeName);
+  if(!currentStore.categories) currentStore.categories=[];
+  renderCategories();
+}
+
+function renderCategories(){
+  catList.innerHTML="";
+  if(currentStore.categories.length===0){
+    catList.innerHTML="<p>No categories created yet.</p>";
+    return;
+  }
+  currentStore.categories.forEach((c,i)=>{
+    const div=document.createElement("div");
+    div.className="catCard";
+    div.innerHTML=`
+      <div class="catInfo">
+        <span class="catName">${c.name}</span>
+        <span class="catDesc">${c.description||""}</span>
+      </div>
+      <span class="actions">
+        <button class="update">Edit</button>
+        <button class="delete">Delete</button>
+      </span>
+    `;
+    div.querySelector(".update").addEventListener("click",()=>editCategory(i));
+    div.querySelector(".delete").addEventListener("click",()=>deleteCategory(i));
+    catList.appendChild(div);
+  });
+}
+
+catForm.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const name=catName.value.trim();
+  const desc=catDesc.value.trim();
+  if(!name) return;
+  currentStore.categories.push({name,description:desc});
+  await idbPut('stores',currentStore);
+  catName.value="";catDesc.value="";
+  renderCategories();
+});
+
+async function editCategory(index){
+  const current=currentStore.categories[index];
+  const newName=prompt("Edit category name:",current.name);
+  if(!newName||!newName.trim()) return;
+  const newDesc=prompt("Edit description:",current.description||"")||"";
+  currentStore.categories[index]={name:newName.trim(),description:newDesc.trim()};
+  await idbPut('stores',currentStore);
+  renderCategories();
+}
+
+async function deleteCategory(index){
+  if(!confirm("Delete this category?")) return;
+  currentStore.categories.splice(index,1);
+  await idbPut('stores',currentStore);
+  renderCategories();
+}
+
+/* Init */
+loadStore();
+</script>
+</body>
+</html>
