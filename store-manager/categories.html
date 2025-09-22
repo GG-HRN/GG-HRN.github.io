@@ -18,13 +18,13 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
-  body{margin:0;font-family:sans-serif;background:#0f1724;color:#fff;}
-  header{display:flex;align-items:center;padding:12px;background:#0b1220;color:#fff;position:sticky;top:0;z-index:20}
-  #backBtn{margin-right:10px}
-  main{padding:16px}
-  .card{background:#1e293b;color:#fff;margin-bottom:12px;padding:12px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;}
-  .card-title{margin:0;font-weight:bold;}
-  .btn-sm{padding:.25rem .5rem;font-size:.75rem;}
+body{margin:0;font-family:sans-serif;background:#0f1724;color:#fff;}
+header{display:flex;align-items:center;padding:12px;background:#0b1220;color:#fff;position:sticky;top:0;z-index:20}
+#backBtn{margin-right:10px}
+main{padding:16px}
+.card{background:#1e293b;color:#fff;margin-bottom:12px;padding:12px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;}
+.card-title{margin:0;font-weight:bold;}
+.btn-sm{padding:.25rem .5rem;font-size:.75rem;}
 </style>
 </head>
 <body>
@@ -88,7 +88,7 @@ async function idbPut(store,value){
   });
 }
 
-/* ---- Logic ---- */
+/* ---- Variables ---- */
 const storeName=localStorage.getItem('activeStore');
 let currentStore;
 const catName=document.getElementById('catName');
@@ -107,10 +107,15 @@ let currentPage=1;
 const pageSize=5;
 let sortDir='asc';
 
+/* ---- Main ---- */
 async function loadStore(){
   if(!storeName){Swal.fire('No active store'); return;}
   currentStore=await idbGet('stores',storeName);
   if(!currentStore.categories) currentStore.categories=[];
+  
+  // Only now attach Add button
+  addCatBtn.addEventListener("click", addCategory);
+
   applyFilters();
 }
 
@@ -174,30 +179,29 @@ function renderPagination(){
   }
 }
 
-/* ---- Event Listeners ---- */
-catSearch.addEventListener("input",applyFilters);
-sortAscBtn.addEventListener("click",()=>{sortDir='asc';sortCats();renderCategories();});
-sortDescBtn.addEventListener("click",()=>{sortDir='desc';sortCats();renderCategories();});
-addCatBtn.addEventListener("click",async ()=>{
+/* ---- Add/Edit/Delete ---- */
+async function addCategory(){
   const name = catName.value.trim();
   if(!name) return Swal.fire('Enter a category name');
 
-  const exists=currentStore.categories.some(c=>c.name.toLowerCase()===name.toLowerCase());
-  if(exists){Swal.fire('Category already exists!'); return;}
+  if(currentStore.categories.some(c=>c.name.toLowerCase()===name.toLowerCase())){
+    return Swal.fire('Category already exists!');
+  }
 
   currentStore.categories.push({name});
   await idbPut('stores',currentStore);
   catName.value="";
   applyFilters();
-});
+}
 
 async function editCategory(index){
   const current=currentStore.categories[index];
   const newName=prompt("Edit category name:",current.name);
   if(!newName||!newName.trim()) return;
 
-  const exists=currentStore.categories.some((c,i)=>i!==index && c.name.toLowerCase()===newName.toLowerCase());
-  if(exists){Swal.fire('Another category with this name exists!'); return;}
+  if(currentStore.categories.some((c,i)=>i!==index && c.name.toLowerCase()===newName.toLowerCase())){
+    return Swal.fire('Another category with this name exists!');
+  }
 
   currentStore.categories[index].name=newName.trim();
   await idbPut('stores',currentStore);
@@ -219,10 +223,12 @@ async function deleteCategory(index){
   });
 }
 
-/* ---- Init ---- */
-loadStore();
+/* ---- Search/Sort ---- */
+catSearch.addEventListener("input",applyFilters);
+sortAscBtn.addEventListener("click",()=>{sortDir='asc';sortCats();renderCategories();});
+sortDescBtn.addEventListener("click",()=>{sortDir='desc';sortCats();renderCategories();});
 
-});
+loadStore();
 </script>
 </body>
 </html>
