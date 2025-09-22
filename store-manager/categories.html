@@ -126,7 +126,21 @@ async function loadStore(){
   currentStore = await idbGet('stores',storeName);
   if(!currentStore.categories) currentStore.categories=[];
   applyFilters();
+
+  // now we attach the add button listener
+  addCatBtn.addEventListener('click', async()=>{
+    const name = catName.value.trim();
+    if(!name) return Swal.fire('Enter a category name');
+    if(currentStore.categories.some(c=>c.name.toLowerCase()===name.toLowerCase()))
+      return Swal.fire('Category already exists!');
+    currentStore.categories.push({name});
+    await idbPut('stores',currentStore);
+    catName.value='';
+    applyFilters();
+  });
 }
+
+loadStore();
 
 /* Filters, sort, pagination */
 function applyFilters(){
