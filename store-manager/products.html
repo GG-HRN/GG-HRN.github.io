@@ -140,7 +140,7 @@ function fillSelects(){
   prodBrand.innerHTML='<option value="">Select a brand...</option>';
   brands.forEach(b=>{const o=document.createElement('option'); o.value=o.textContent=b; prodBrand.appendChild(o);});
   prodCategory.innerHTML='<option value="">Select a category...</option>';
-  categories.forEach(c=>{const o=document.createElement('option'); o.value=o.textContent=c.name; prodCategory.appendChild(o);});
+  categories.forEach(c=>{const o=document.createElement('option'); o.value=o.textContent=c; prodCategory.appendChild(o);});
   prodSubcategory.innerHTML='<option value="">Select a subcategory...</option>';
 }
 
