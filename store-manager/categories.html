@@ -14,32 +14,48 @@
 <link rel="icon" href="icons/favicon-32x32.png" sizes="32x32">
 <link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
 
-<!-- SweetAlert -->
+<!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
-  body{margin:0;font-family:sans-serif;background:#0f1724;color:#fff;}
-  header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#0b1220;color:#fff;position:sticky;top:0;z-index:20;}
-  #backBtn{background:#6366f1;border:0;color:#fff;padding:6px 10px;border-radius:6px;font-weight:700;cursor:pointer;}
-  #headerTitle{flex:1;text-align:center;font-size:16px;font-weight:700}
+body{margin:0;font-family:sans-serif;background:#0f1724;color:#fff;}
+header{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;background:#0b1220;color:#fff;
+  position:sticky;top:0;z-index:20;
+}
+#backBtn{
+  background:#6366f1;border:0;color:#fff;
+  padding:6px 10px;border-radius:6px;font-weight:700;cursor:pointer;
+}
+#headerTitle{flex:1;text-align:center;font-size:16px;font-weight:700}
 
-  main{padding:16px}
+main{padding:16px}
 
-  .input-row{display:flex;gap:8px;margin-bottom:12px;}
-  .input-row input{flex:1;padding:10px;border-radius:6px;border:none;font-size:15px;}
-  .input-row button{padding:10px;border-radius:6px;border:none;background:#10b981;color:#fff;font-weight:700;cursor:pointer;}
+/* Input row with button beside */
+.input-row{
+  display:flex;gap:8px;margin-bottom:12px;
+}
+.input-row input{flex:1;padding:10px;border-radius:6px;border:none;font-size:15px;}
+.input-row button{padding:10px;border-radius:6px;border:none;background:#10b981;color:#fff;font-weight:700;cursor:pointer;}
 
-  #catSearch{margin-bottom:12px;padding:8px;border-radius:6px;border:none;width:100%;box-sizing:border-box}
+#catSearch{margin-bottom:12px;padding:8px;border-radius:6px;border:none;width:100%;box-sizing:border-box}
 
-  .catCard{background:#1e293b;padding:12px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
-  .catName{font-weight:bold}
-  .actions button{margin-left:6px;padding:6px 10px;border:none;border-radius:6px;cursor:pointer;font-weight:700}
-  .actions button.update{background:#f59e0b;color:#fff}
-  .actions button.delete{background:#ef4444;color:#fff}
+.catCard{
+  background:#1e293b;padding:12px;border-radius:8px;margin-bottom:10px;
+  display:flex;justify-content:space-between;align-items:center
+}
+.catName{font-weight:bold}
+.actions button{margin-left:6px;background:none;border:none;padding:6px 10px;border-radius:6px;color:#fff;cursor:pointer;font-weight:700}
+.actions .update{background:#f59e0b}
+.actions .delete{background:#ef4444}
 
-  .pagination{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
-  .pagination button{padding:6px 10px;border:none;border-radius:6px;background:#6366f1;color:#fff;cursor:pointer;font-weight:700}
-  .pagination button.active{background:#10b981}
+/* pagination */
+.pagination{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.pagination button{
+  padding:6px 10px;border:none;border-radius:6px;background:#6366f1;color:#fff;cursor:pointer;font-weight:700
+}
+.pagination button.active{background:#10b981}
 </style>
 </head>
 <body>
@@ -55,8 +71,9 @@
   </div>
 
   <input type="text" id="catSearch" placeholder="Search categories...">
+
   <div>
-    Sort by:
+    Sort by: 
     <button id="sortAsc">A→Z</button>
     <button id="sortDesc">Z→A</button>
   </div>
@@ -104,14 +121,15 @@ async function idbPut(store,value){
 /* ---- Logic ---- */
 const storeName=localStorage.getItem('activeStore');
 let currentStore;
-const catName=document.getElementById('catName');
+
+const catNameInput=document.getElementById('catName');
 const catList=document.getElementById('catList');
 const catSearch=document.getElementById('catSearch');
 const paginationDiv=document.getElementById('pagination');
 const backBtn=document.getElementById('backBtn');
-const addCatBtn=document.getElementById('addCatBtn');
 const sortAscBtn=document.getElementById('sortAsc');
 const sortDescBtn=document.getElementById('sortDesc');
+const addCatBtn=document.getElementById('addCatBtn');
 
 backBtn.addEventListener('click',()=>window.location.href="dashboard.html");
 
@@ -121,29 +139,18 @@ const pageSize=5;
 let sortDir='asc';
 
 async function loadStore(){
-  if(!storeName){Swal.fire('No active store'); return;}
-  currentStore = await idbGet('stores',storeName);
+  if(!storeName){Swal.fire("No active store"); return;}
+  currentStore=await idbGet('stores',storeName);
   if(!currentStore.categories) currentStore.categories=[];
-  applyFilters();
-
-  // Add button listener
-  addCatBtn.addEventListener('click', async ()=>{
-    const name = catName.value.trim();
-    if(!name) return Swal.fire('Enter a category name');
-    if(currentStore.categories.some(c=>c.name.toLowerCase()===name.toLowerCase()))
-      return Swal.fire('Category already exists!');
-    currentStore.categories.push({name});
-    await idbPut('stores',currentStore);
-    catName.value='';
-    applyFilters();
-  });
+  renderCategories();
 }
 
 function applyFilters(){
   const filter = catSearch.value.trim().toLowerCase();
-  filteredCats = currentStore.categories.filter(c =>
+  filteredCats=currentStore.categories.filter(c =>
     c.name.toLowerCase().includes(filter)
   );
+
   sortCats();
   currentPage=1;
   renderCategories();
@@ -164,10 +171,11 @@ function renderCategories(){
     paginationDiv.innerHTML="";
     return;
   }
+
   const start=(currentPage-1)*pageSize;
   const pageCats=filteredCats.slice(start,start+pageSize);
 
-  pageCats.forEach(c=>{
+  pageCats.forEach((c)=>{
     const div=document.createElement("div");
     div.className="catCard";
     div.innerHTML=`
@@ -181,6 +189,7 @@ function renderCategories(){
     div.querySelector(".delete").addEventListener("click",()=>deleteCategory(currentStore.categories.indexOf(c)));
     catList.appendChild(div);
   });
+
   renderPagination();
 }
 
@@ -196,14 +205,32 @@ function renderPagination(){
   }
 }
 
-/* ---- Edit/Delete ---- */
+/* ---- Event Listeners ---- */
+catSearch.addEventListener("input",applyFilters);
+sortAscBtn.addEventListener("click",()=>{sortDir='asc';sortCats();renderCategories();});
+sortDescBtn.addEventListener("click",()=>{sortDir='desc';sortCats();renderCategories();});
+
+addCatBtn.addEventListener('click', async () => {
+  const name = catNameInput.value.trim();
+  if(!name) return Swal.fire("Enter a category name");
+  if(currentStore.categories.some(c=>c.name.toLowerCase()===name.toLowerCase()))
+    return Swal.fire("Category already exists!");
+
+  currentStore.categories.push({name});
+  await idbPut('stores', currentStore);
+  catNameInput.value="";
+  applyFilters();
+});
+
 async function editCategory(index){
   const current=currentStore.categories[index];
   const newName=prompt("Edit category name:",current.name);
   if(!newName||!newName.trim()) return;
+
   if(currentStore.categories.some((c,i)=>i!==index && c.name.toLowerCase()===newName.toLowerCase()))
-    return Swal.fire('Another category with this name exists!');
-  currentStore.categories[index].name = newName.trim();
+    return Swal.fire("Another category with this name exists!");
+
+  currentStore.categories[index].name=newName.trim();
   await idbPut('stores',currentStore);
   applyFilters();
 }
@@ -215,23 +242,8 @@ async function deleteCategory(index){
   applyFilters();
 }
 
-/* ---- Search & Sort ---- */
-catSearch.addEventListener("input",applyFilters);
-sortAscBtn.addEventListener("click",()=>{sortDir='asc';applyFilters();});
-sortDescBtn.addEventListener("click",()=>{sortDir='desc';applyFilters();});
-
 /* ---- Init ---- */
 loadStore();
-</script>
-
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => console.log('SW registered', reg))
-      .catch(err => console.log('SW registration failed', err));
-  });
-}
 </script>
 </body>
 </html>
