@@ -73,7 +73,14 @@
   <main style="padding:16px">
     <h2 id="dashTitle">Dashboard</h2>
     <div id="advisories"></div>
+
+    <h3 style="margin-top:20px">📊 Sales Summary</h3>
+    <canvas id="salesChart" style="max-width:100%;background:#1e293b;padding:12px;border-radius:8px"></canvas>
+    <div id="salesEmpty" style="margin-top:10px;color:#94a3b8"></div>
   </main>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
 /* ---- IndexedDB helpers ---- */
@@ -165,9 +172,60 @@ async function loadDashboard(){
   advisoriesDiv.innerHTML = advices.length>0
     ? advices.map(a=>`<div class="advice"><strong>Notice:</strong> ${a}</div>`).join('')
     : `<div class="advice">All good! No issues detected.</div>`;
+
+  renderSalesChart(store.sales || []);
+}
+
+function renderSalesChart(sales){
+  const salesChart = document.getElementById('salesChart');
+  const salesEmpty = document.getElementById('salesEmpty');
+
+  if(!sales || sales.length===0){
+    salesChart.style.display='none';
+    salesEmpty.textContent='No sales recorded yet.';
+    return;
+  }
+
+  // Aggregate sales by date (only days with sales)
+  const dailyTotals = {};
+  sales.forEach(s=>{
+    const dateObj = new Date(s.date || Date.now());
+    const date = dateObj.toISOString().slice(0,10); // YYYY-MM-DD
+    dailyTotals[date] = (dailyTotals[date]||0) + (s.total || 0);
+  });
+
+  const labels = Object.keys(dailyTotals).sort();
+  const values = labels.map(d=>dailyTotals[d]);
+
+  new Chart(salesChart, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Sales ($)',
+        data: values,
+        borderWidth: 2,
+        borderColor: '#6366f1',
+        backgroundColor: 'rgba(99,102,241,0.3)',
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins:{
+        legend:{labels:{color:'#fff'}}
+      },
+      scales:{
+        x:{ticks:{color:'#fff'}},
+        y:{ticks:{color:'#fff'}}
+      }
+    }
+  });
 }
 </script>
-  <script>
+
+<script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js')
