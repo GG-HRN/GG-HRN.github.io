@@ -65,7 +65,7 @@ function openDB(){
         db.createObjectStore('stores',{keyPath:'name'});
     };
     req.onsuccess=e=>res(e.target.result);
-    req.onerror=e=>rej(e.target.error);
+    req.onerror=e=>rej(req.error);
   });
   return dbPromise;
 }
@@ -113,7 +113,7 @@ async function loadStore(){
   currentStore=await idbGet('stores',storeName);
   if(!currentStore.categories) currentStore.categories=[];
   
-  // Only now attach Add button
+  // Add category event
   addCatBtn.addEventListener("click", addCategory);
 
   applyFilters();
@@ -158,6 +158,7 @@ function renderCategories(){
         <button class="btn btn-danger btn-sm">Delete</button>
       </span>
     `;
+    // attach events for each card
     div.querySelector(".btn-warning").addEventListener("click",()=>editCategory(currentStore.categories.indexOf(c)));
     div.querySelector(".btn-danger").addEventListener("click",()=>deleteCategory(currentStore.categories.indexOf(c)));
     catList.appendChild(div);
@@ -196,8 +197,13 @@ async function addCategory(){
 
 async function editCategory(index){
   const current=currentStore.categories[index];
-  const newName=prompt("Edit category name:",current.name);
-  if(!newName||!newName.trim()) return;
+  const { value: newName } = await Swal.fire({
+    title: 'Edit category name',
+    input: 'text',
+    inputValue: current.name,
+    showCancelButton: true
+  });
+  if(!newName) return;
 
   if(currentStore.categories.some((c,i)=>i!==index && c.name.toLowerCase()===newName.toLowerCase())){
     return Swal.fire('Another category with this name exists!');
@@ -209,18 +215,17 @@ async function editCategory(index){
 }
 
 async function deleteCategory(index){
-  Swal.fire({
+  const result = await Swal.fire({
     title: 'Delete this category?',
+    icon: 'warning',
     showCancelButton: true,
-    confirmButtonText: 'Delete',
-    icon: 'warning'
-  }).then(async (result)=>{
-    if(result.isConfirmed){
-      currentStore.categories.splice(index,1);
-      await idbPut('stores',currentStore);
-      applyFilters();
-    }
+    confirmButtonText: 'Delete'
   });
+  if(result.isConfirmed){
+    currentStore.categories.splice(index,1);
+    await idbPut('stores',currentStore);
+    applyFilters();
+  }
 }
 
 /* ---- Search/Sort ---- */
@@ -229,6 +234,7 @@ sortAscBtn.addEventListener("click",()=>{sortDir='asc';sortCats();renderCategori
 sortDescBtn.addEventListener("click",()=>{sortDir='desc';sortCats();renderCategories();});
 
 loadStore();
+});
 </script>
 </body>
 </html>
