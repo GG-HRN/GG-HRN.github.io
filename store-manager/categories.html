@@ -4,86 +4,43 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Categories</title>
-
-<link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Categories">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="theme-color" content="#1e293b">
-<link rel="icon" href="icons/favicon-32x32.png" sizes="32x32">
-<link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
-
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <style>
-body{margin:0;font-family:sans-serif;background:#0f1724;color:#fff;}
-header{
-  display:flex;align-items:center;gap:12px;
-  padding:12px 16px;background:#0b1220;color:#fff;
-  position:sticky;top:0;z-index:20;
-}
-#backBtn{
-  background:#6366f1;border:0;color:#fff;
-  padding:6px 10px;border-radius:6px;font-weight:700;cursor:pointer;
-}
-#headerTitle{flex:1;text-align:center;font-size:16px;font-weight:700}
-
-main{padding:16px}
-
-/* Input row with button beside */
-.input-row{
-  display:flex;gap:8px;margin-bottom:12px;
-}
-.input-row input{flex:1;padding:10px;border-radius:6px;border:none;font-size:15px;}
-.input-row button{padding:10px;border-radius:6px;border:none;background:#10b981;color:#fff;font-weight:700;cursor:pointer;}
-
-#catSearch{margin-bottom:12px;padding:8px;border-radius:6px;border:none;width:100%;box-sizing:border-box}
-
-.catCard{
-  background:#1e293b;padding:12px;border-radius:8px;margin-bottom:10px;
-  display:flex;justify-content:space-between;align-items:center
-}
-.catName{font-weight:bold}
-.actions button{margin-left:6px;background:none;border:none;padding:6px 10px;border-radius:6px;color:#fff;cursor:pointer;font-weight:700}
-.actions .update{background:#f59e0b}
-.actions .delete{background:#ef4444}
-
-/* pagination */
-.pagination{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
-.pagination button{
-  padding:6px 10px;border:none;border-radius:6px;background:#6366f1;color:#fff;cursor:pointer;font-weight:700
-}
-.pagination button.active{background:#10b981}
+  body{margin:0;font-family:sans-serif;background:#0f1724;color:#fff;padding:16px;}
+  h1{text-align:center;margin-bottom:16px;}
+  .input-row{display:flex;gap:8px;margin-bottom:12px;}
+  .input-row input{flex:1;padding:8px;border-radius:6px;border:none;}
+  .input-row button{padding:8px;border-radius:6px;border:none;background:#10b981;color:#fff;cursor:pointer;}
+  #catSearch{width:100%;padding:8px;margin-bottom:12px;border-radius:6px;border:none;}
+  .catCard{background:#1e293b;padding:12px;border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+  .catName{font-weight:bold;}
+  .actions button{margin-left:6px;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;}
+  .actions .update{background:#f59e0b;color:#fff;}
+  .actions .delete{background:#ef4444;color:#fff;}
+  .pagination{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;}
+  .pagination button{padding:6px 10px;border:none;border-radius:6px;background:#6366f1;color:#fff;cursor:pointer;font-weight:700;}
+  .pagination button.active{background:#10b981;}
 </style>
 </head>
 <body>
-<header>
-  <button id="backBtn">←</button>
-  <div id="headerTitle">Categories</div>
-</header>
 
-<main>
-  <div class="input-row">
-    <input type="text" id="catName" placeholder="Enter category name"/>
-    <button id="addCatBtn">Add</button>
-  </div>
+<h1>Categories</h1>
 
-  <input type="text" id="catSearch" placeholder="Search categories...">
+<div class="input-row">
+  <input type="text" id="catName" placeholder="Category name"/>
+  <button id="addBtn">Add</button>
+</div>
 
-  <div>
-    Sort by: 
-    <button id="sortAsc">A→Z</button>
-    <button id="sortDesc">Z→A</button>
-  </div>
+<input type="text" id="catSearch" placeholder="Search categories...">
 
-  <div id="catList"></div>
-  <div class="pagination" id="pagination"></div>
-</main>
+<div>
+  Sort: <button id="sortAsc">A→Z</button>
+  <button id="sortDesc">Z→A</button>
+</div>
+
+<div id="catList"></div>
+<div class="pagination" id="pagination"></div>
 
 <script>
-/* ---- IndexedDB helpers ---- */
 const DB_NAME='StoresDB',DB_VERSION=1;let dbPromise;
 function openDB(){
   if(dbPromise) return dbPromise;
@@ -118,7 +75,6 @@ async function idbPut(store,value){
   });
 }
 
-/* ---- Logic ---- */
 const storeName=localStorage.getItem('activeStore');
 let currentStore;
 
@@ -126,12 +82,9 @@ const catNameInput=document.getElementById('catName');
 const catList=document.getElementById('catList');
 const catSearch=document.getElementById('catSearch');
 const paginationDiv=document.getElementById('pagination');
-const backBtn=document.getElementById('backBtn');
+const addBtn=document.getElementById('addBtn');
 const sortAscBtn=document.getElementById('sortAsc');
 const sortDescBtn=document.getElementById('sortDesc');
-const addCatBtn=document.getElementById('addCatBtn');
-
-backBtn.addEventListener('click',()=>window.location.href="dashboard.html");
 
 let filteredCats=[];
 let currentPage=1;
@@ -139,18 +92,15 @@ const pageSize=5;
 let sortDir='asc';
 
 async function loadStore(){
-  if(!storeName){Swal.fire("No active store"); return;}
+  if(!storeName){alert("No active store"); return;}
   currentStore=await idbGet('stores',storeName);
   if(!currentStore.categories) currentStore.categories=[];
-  renderCategories();
+  applyFilters();
 }
 
 function applyFilters(){
   const filter = catSearch.value.trim().toLowerCase();
-  filteredCats=currentStore.categories.filter(c =>
-    c.name.toLowerCase().includes(filter)
-  );
-
+  filteredCats=currentStore.categories.filter(c=>c.name.toLowerCase().includes(filter));
   sortCats();
   currentPage=1;
   renderCategories();
@@ -166,18 +116,12 @@ function sortCats(){
 
 function renderCategories(){
   catList.innerHTML="";
-  if(filteredCats.length===0){
-    catList.innerHTML="<p>No categories found.</p>";
-    paginationDiv.innerHTML="";
-    return;
-  }
-
+  if(filteredCats.length===0){catList.innerHTML="<p>No categories found.</p>"; paginationDiv.innerHTML=""; return;}
   const start=(currentPage-1)*pageSize;
   const pageCats=filteredCats.slice(start,start+pageSize);
-
-  pageCats.forEach((c)=>{
-    const div=document.createElement("div");
-    div.className="catCard";
+  pageCats.forEach(c=>{
+    const div=document.createElement('div');
+    div.className='catCard';
     div.innerHTML=`
       <span class="catName">${c.name}</span>
       <span class="actions">
@@ -189,7 +133,6 @@ function renderCategories(){
     div.querySelector(".delete").addEventListener("click",()=>deleteCategory(currentStore.categories.indexOf(c)));
     catList.appendChild(div);
   });
-
   renderPagination();
 }
 
@@ -205,19 +148,12 @@ function renderPagination(){
   }
 }
 
-/* ---- Event Listeners ---- */
-catSearch.addEventListener("input",applyFilters);
-sortAscBtn.addEventListener("click",()=>{sortDir='asc';sortCats();renderCategories();});
-sortDescBtn.addEventListener("click",()=>{sortDir='desc';sortCats();renderCategories();});
-
-addCatBtn.addEventListener('click', async () => {
-  const name = catNameInput.value.trim();
-  if(!name) return Swal.fire("Enter a category name");
-  if(currentStore.categories.some(c=>c.name.toLowerCase()===name.toLowerCase()))
-    return Swal.fire("Category already exists!");
-
+addBtn.addEventListener('click', async ()=>{
+  const name=catNameInput.value.trim();
+  if(!name){alert("Enter category name"); return;}
+  if(currentStore.categories.some(c=>c.name.toLowerCase()===name.toLowerCase())){alert("Category exists"); return;}
   currentStore.categories.push({name});
-  await idbPut('stores', currentStore);
+  await idbPut('stores',currentStore);
   catNameInput.value="";
   applyFilters();
 });
@@ -226,10 +162,7 @@ async function editCategory(index){
   const current=currentStore.categories[index];
   const newName=prompt("Edit category name:",current.name);
   if(!newName||!newName.trim()) return;
-
-  if(currentStore.categories.some((c,i)=>i!==index && c.name.toLowerCase()===newName.toLowerCase()))
-    return Swal.fire("Another category with this name exists!");
-
+  if(currentStore.categories.some((c,i)=>i!==index && c.name.toLowerCase()===newName.toLowerCase())){alert("Duplicate name"); return;}
   currentStore.categories[index].name=newName.trim();
   await idbPut('stores',currentStore);
   applyFilters();
@@ -242,8 +175,12 @@ async function deleteCategory(index){
   applyFilters();
 }
 
-/* ---- Init ---- */
+catSearch.addEventListener('input',applyFilters);
+sortAscBtn.addEventListener('click',()=>{sortDir='asc';sortCats();renderCategories();});
+sortDescBtn.addEventListener('click',()=>{sortDir='desc';sortCats();renderCategories();});
+
 loadStore();
 </script>
+
 </body>
 </html>
