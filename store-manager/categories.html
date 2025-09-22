@@ -4,149 +4,270 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Categories</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Categories">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#1e293b">
+<link rel="icon" href="icons/favicon-32x32.png" sizes="32x32">
+<link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <style>
-body{margin:0;font-family:sans-serif;background:#0f1724;color:#fff;}
-header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#0b1220;color:#fff;position:sticky;top:0;}
-#backBtn{background:#6366f1;border:0;color:#fff;padding:6px 10px;border-radius:6px;font-weight:700;cursor:pointer;}
-#headerTitle{flex:1;text-align:center;font-size:16px;font-weight:700}
-main{padding:16px}
-#catForm{display:flex;gap:6px;margin-bottom:12px;}
-#catInput{flex:1;padding:10px;border-radius:6px;border:none;font-size:15px;}
-#addBtn{padding:10px;border-radius:6px;border:none;background:#10b981;color:#fff;font-weight:700;cursor:pointer;}
-.catCard{background:#1e293b;padding:12px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
-.actions button{margin-left:6px;padding:6px 10px;border:none;border-radius:6px;cursor:pointer;font-weight:700;}
-.actions .edit{background:#f59e0b;color:#fff;}
-.actions .del{background:#ef4444;color:#fff;}
-#catSearch{margin-bottom:12px;padding:8px;border-radius:6px;border:none;width:100%;box-sizing:border-box;}
+body{background:#0f1724;color:#fff;font-family:sans-serif;margin:0}
+header{background:#0b1220;color:#fff;padding:12px;display:flex;align-items:center}
+#backBtn{margin-right:10px}
+.card{background:#1e293b;color:#fff}
+.swal2-popup{font-size:14px !important}
+.muted{color:#94a3b8}
 </style>
 </head>
 <body>
 <header>
-  <button id="backBtn">←</button>
-  <div id="headerTitle">Categories</div>
+  <button id="backBtn" class="btn btn-sm btn-primary">← Back</button>
+  <h5 class="m-0 w-100 text-center">Categories</h5>
 </header>
 
-<main>
-  <div id="catForm">
-    <input type="text" id="catInput" placeholder="Enter category name"/>
-    <button id="addBtn">Add</button>
-  </div>
-  <input type="text" id="catSearch" placeholder="Search categories...">
-  <div id="catList"></div>
+<main class="container py-3">
+  <form id="catForm" class="mb-3 d-flex gap-2" autocomplete="off">
+    <input type="text" id="catInput" class="form-control" placeholder="Enter category name"/>
+    <button type="submit" class="btn btn-success">Add</button>
+  </form>
+
+  <input type="text" id="catSearch" class="form-control mb-3" placeholder="Search categories...">
+
+  <div id="catList" class="mb-2"></div>
+  <div class="d-flex flex-wrap gap-2 mt-3" id="pagination"></div>
 </main>
 
 <script>
-const DB_NAME='StoresDB',DB_VERSION=1;
-let dbPromise;
-const storeName = localStorage.getItem('activeStore');
-let currentStore;
+const DB_NAME = 'StoresDB';
+const DB_VERSION = 2;
+let db;
 
+// ----- IndexedDB helpers -----
 function openDB(){
-  if(dbPromise) return dbPromise;
-  dbPromise = new Promise((res,rej)=>{
+  return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if(!db.objectStoreNames.contains('stores'))
-        db.createObjectStore('stores',{keyPath:'name'});
+    req.onupgradeneeded = (e) => {
+      const _db = e.target.result;
+      if(!_db.objectStoreNames.contains('stores')){
+        _db.createObjectStore('stores', { keyPath: 'name' });
+      }
     };
-    req.onsuccess = e => res(e.target.result);
-    req.onerror = e => rej(e.target.error);
-  });
-  return dbPromise;
-}
-
-async function idbGet(store,key){
-  const db = await openDB();
-  return new Promise((res,rej)=>{
-    const tx=db.transaction(store,'readonly');
-    const req=tx.objectStore(store).get(key);
-    req.onsuccess=()=>res(req.result);
-    req.onerror=()=>rej(req.error);
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror = e => reject(e.target.error);
   });
 }
 
-async function idbPut(store,value){
-  const db = await openDB();
-  return new Promise((res,rej)=>{
-    const tx=db.transaction(store,'readwrite');
-    tx.objectStore(store).put(value);
-    tx.oncomplete=()=>res();
-    tx.onerror=()=>rej(tx.error);
+async function idbGet(store, key){
+  if(!db) await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => res(req.result || null);
+    req.onerror = () => rej(req.error);
   });
 }
 
-const catInput=document.getElementById('catInput');
-const addBtn=document.getElementById('addBtn');
-const catList=document.getElementById('catList');
-const catSearch=document.getElementById('catSearch');
+async function idbPut(store, value){
+  if(!db) await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put(value);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
 
-let categories=[];
-let filteredCats=[];
+// ----- UI elements -----
+const storeName = localStorage.getItem('activeStore');
+const catForm = document.getElementById('catForm');
+const catInput = document.getElementById('catInput');
+const catSearch = document.getElementById('catSearch');
+const catList = document.getElementById('catList');
+const paginationDiv = document.getElementById('pagination');
+const backBtn = document.getElementById('backBtn');
+backBtn.addEventListener('click', ()=> window.location.href = 'dashboard.html');
 
-document.getElementById('backBtn').addEventListener('click',()=>window.location.href="dashboard.html");
+let currentStore = null;
+let filteredCats = [];
+let currentPage = 1;
+const pageSize = 6;
 
+// ----- Load store and initialize -----
 async function loadStore(){
-  if(!storeName){alert("No active store"); return;}
-  currentStore = await idbGet('stores',storeName);
-  if(!currentStore.categories) currentStore.categories=[];
-  categories = currentStore.categories;
-  filteredCats = categories;
+  try{
+    await openDB();
+    if(!storeName){
+      Swal.fire({ icon:'error', title:'No store', text:'No active store selected' });
+      return;
+    }
+    const s = await idbGet('stores', storeName);
+    if(!s){
+      currentStore = { name: storeName, products: [], components: [], brands: [], categories: [], subcategories: [], sales: [], production: [] };
+      await idbPut('stores', currentStore);
+    } else {
+      currentStore = s;
+    }
+    if(!Array.isArray(currentStore.categories)) currentStore.categories = [];
+    applyFilters();
+  }catch(err){
+    console.error('loadStore error', err);
+    Swal.fire({ icon:'error', title:'DB error', text: String(err) });
+  }
+}
+
+// ----- Filtering / Rendering -----
+function applyFilters(){
+  const q = (catSearch.value || '').trim().toLowerCase();
+  filteredCats = (currentStore.categories || []).filter(c => (c||'').toLowerCase().includes(q));
+  filteredCats.sort((a,b)=> a.toLowerCase() < b.toLowerCase() ? -1 : a.toLowerCase() > b.toLowerCase() ? 1 : 0);
+  currentPage = 1;
   renderCategories();
 }
 
 function renderCategories(){
-  const filter = catSearch.value.trim().toLowerCase();
-  filteredCats = categories.filter(c=>c.toLowerCase().includes(filter));
   catList.innerHTML = '';
-  filteredCats.forEach((c,i)=>{
-    const div = document.createElement('div');
-    div.className='catCard';
-    div.innerHTML = `
-      <span>${c}</span>
-      <span class="actions">
-        <button class="edit">Edit</button>
-        <button class="del">Delete</button>
-      </span>
+  if(!filteredCats || filteredCats.length === 0){
+    catList.innerHTML = '<p class="muted">No categories found.</p>';
+    paginationDiv.innerHTML = '';
+    return;
+  }
+
+  const start = (currentPage - 1) * pageSize;
+  const pageCats = filteredCats.slice(start, start + pageSize);
+
+  pageCats.forEach(name => {
+    const idx = currentStore.categories.indexOf(name);
+    const card = document.createElement('div');
+    card.className = 'card mb-2 p-3 d-flex flex-row justify-content-between align-items-center';
+    card.innerHTML = `
+      <div class="fw-bold">${escapeHtml(name)}</div>
+      <div>
+        <button class="btn btn-warning btn-sm me-1" data-action="edit">Edit</button>
+        <button class="btn btn-danger btn-sm" data-action="delete">Delete</button>
+      </div>
     `;
-    div.querySelector('.edit').addEventListener('click',()=>editCategory(i));
-    div.querySelector('.del').addEventListener('click',()=>deleteCategory(i));
-    catList.appendChild(div);
+    card.querySelector('[data-action="edit"]').addEventListener('click', ()=> editCategory(idx) );
+    card.querySelector('[data-action="delete"]').addEventListener('click', ()=> deleteCategory(idx) );
+    catList.appendChild(card);
   });
+
+  renderPagination();
 }
 
-addBtn.addEventListener('click', async ()=>{
-  const name = catInput.value.trim();
-  if(!name){alert('Enter a category name'); return;}
-  if(categories.includes(name)){alert('Category exists'); return;}
-  categories.push(name);
-  currentStore.categories = categories;
-  await idbPut('stores',currentStore);
-  catInput.value='';
-  renderCategories();
+function renderPagination(){
+  paginationDiv.innerHTML = '';
+  const totalPages = Math.max(1, Math.ceil(filteredCats.length / pageSize));
+  for(let i=1;i<=totalPages;i++){
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-sm ' + (i === currentPage ? 'btn-success' : 'btn-primary');
+    btn.textContent = i;
+    btn.addEventListener('click', ()=> { currentPage = i; renderCategories(); });
+    paginationDiv.appendChild(btn);
+  }
+}
+
+// ----- Helpers -----
+function escapeHtml(str){
+  if(!str) return '';
+  return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+function normalizeName(n){ return (n||'').trim(); }
+function existsCategoryCaseInsensitive(name, exceptIndex = -1){
+  const n = name.toLowerCase();
+  return currentStore.categories.some((c,i)=> i!==exceptIndex && (c||'').toLowerCase() === n);
+}
+
+// ----- Events -----
+catSearch.addEventListener('input', ()=> { currentPage = 1; applyFilters(); });
+
+catForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try{
+    const name = normalizeName(catInput.value);
+    if(!name) {
+      await Swal.fire({ icon:'warning', title:'Empty', text:'Category name required' });
+      return;
+    }
+    if(existsCategoryCaseInsensitive(name)){
+      await Swal.fire({ icon:'warning', title:'Duplicate', text:'Category already exists' });
+      return;
+    }
+    currentStore.categories.push(name);
+    await idbPut('stores', currentStore);
+    catInput.value = '';
+    await Swal.fire({ icon:'success', title:'Added', timer:900, showConfirmButton:false });
+    applyFilters();
+  }catch(err){
+    console.error('add category error', err);
+    Swal.fire({ icon:'error', title:'Error', text: String(err) });
+  }
 });
 
-function editCategory(index){
-  const newName = prompt("Edit category:",categories[index]);
-  if(!newName || !newName.trim()) return;
-  if(categories.includes(newName) && newName!==categories[index]) {alert("Category exists"); return;}
-  categories[index]=newName.trim();
-  currentStore.categories = categories;
-  idbPut('stores',currentStore);
-  renderCategories();
+// ----- Edit / Delete -----
+async function editCategory(index){
+  if(index < 0 || index >= currentStore.categories.length) return;
+  const current = currentStore.categories[index];
+  const result = await Swal.fire({
+    title: 'Edit category',
+    input: 'text',
+    inputValue: current,
+    showCancelButton: true,
+    confirmButtonText: 'Save',
+    inputValidator: v => (!v || !v.trim()) ? 'Category name required' : null
+  });
+  if(!result || result.isDismissed) return;
+  const newNameRaw = result.value;
+  const newName = normalizeName(newNameRaw);
+  if(existsCategoryCaseInsensitive(newName, index)){
+    await Swal.fire({ icon:'error', title:'Duplicate', text:'Another category with this name exists' });
+    return;
+  }
+  currentStore.categories[index] = newName;
+  await idbPut('stores', currentStore);
+  await Swal.fire({ icon:'success', title:'Saved', timer:700, showConfirmButton:false });
+  applyFilters();
 }
 
-function deleteCategory(index){
-  if(!confirm("Delete this category?")) return;
-  categories.splice(index,1);
-  currentStore.categories = categories;
-  idbPut('stores',currentStore);
-  renderCategories();
+async function deleteCategory(index){
+  if(index < 0 || index >= currentStore.categories.length) return;
+  const name = currentStore.categories[index];
+  const res = await Swal.fire({
+    title: 'Delete category?',
+    html: `Delete <strong>${escapeHtml(name)}</strong>? This cannot be undone.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Yes, delete',
+    confirmButtonColor: '#d33'
+  });
+  if(!res || !res.isConfirmed) return;
+  currentStore.categories.splice(index, 1);
+  await idbPut('stores', currentStore);
+  await Swal.fire({ icon:'success', title:'Deleted', timer:700, showConfirmButton:false });
+  applyFilters();
 }
 
-catSearch.addEventListener('input',renderCategories);
-
+// ----- Init -----
 loadStore();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{/*sw may fail in some contexts*/});
+  });
+}
 </script>
 </body>
 </html>
