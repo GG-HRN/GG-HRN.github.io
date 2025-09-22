@@ -85,7 +85,7 @@ async function idbPut(store,value){
 
 /* ---- Logic ---- */
 const storeName=localStorage.getItem('activeStore');
-let currentStore;
+let currentStore={};
 const brandForm=document.getElementById('brandForm');
 const brandInput=document.getElementById('brandInput');
 const brandList=document.getElementById('brandList');
@@ -103,7 +103,8 @@ let sortDir='asc';
 async function loadStore(){
   if(!storeName){Swal.fire("Error","No active store selected","error");return;}
   currentStore=await idbGet('stores',storeName);
-  if(!currentStore.brands) currentStore.brands=[];
+  if(!currentStore) currentStore={name:storeName,brands:[]};  // fallback
+  if(!Array.isArray(currentStore.brands)) currentStore.brands=[];
   applyFilters();
 }
 
@@ -174,6 +175,7 @@ brandForm.addEventListener("submit",async e=>{
   const name = brandInput.value.trim();
   if(!name) return;
 
+  if(!Array.isArray(currentStore.brands)) currentStore.brands=[];
   const exists=currentStore.brands.some(b=>b.toLowerCase()===name.toLowerCase());
   if(exists){
     Swal.fire("Warning","Brand already exists!","warning");
@@ -183,6 +185,7 @@ brandForm.addEventListener("submit",async e=>{
   currentStore.brands.push(name);
   await idbPut('stores',currentStore);
   brandInput.value="";
+  Swal.fire("Success","Brand added!","success");
   applyFilters();
 });
 
@@ -206,6 +209,7 @@ async function editBrand(index){
 
   currentStore.brands[index]=newName.trim();
   await idbPut('stores',currentStore);
+  Swal.fire("Saved","Brand updated!","success");
   applyFilters();
 }
 
@@ -222,6 +226,7 @@ async function deleteBrand(index){
 
   currentStore.brands.splice(index,1);
   await idbPut('stores',currentStore);
+  Swal.fire("Deleted","Brand removed","success");
   applyFilters();
 }
 
