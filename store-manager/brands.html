@@ -15,140 +15,166 @@
 <link rel="icon" href="icons/favicon-32x32.png" sizes="32x32">
 <link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
 
-<!-- Bootstrap 5 -->
+<!-- Bootstrap 5 (styling only) -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
-  body{background:#0f1724;color:#fff;font-family:sans-serif}
+  body{background:#0f1724;color:#fff;font-family:sans-serif;margin:0}
   header{background:#0b1220;color:#fff;padding:12px;display:flex;align-items:center}
   #backBtn{margin-right:10px}
   .card{background:#1e293b;color:#fff}
   .swal2-popup{font-size:14px !important}
+  .muted{color:#94a3b8}
 </style>
 </head>
 <body>
 <header>
   <button id="backBtn" class="btn btn-sm btn-primary">← Back</button>
-  <h5 class="m-0 flex-grow-1 text-center">Brands</h5>
+  <h5 class="m-0 w-100 text-center">Brands</h5>
 </header>
 
 <main class="container py-3">
-  <form id="brandForm" class="mb-3 d-flex gap-2">
-    <input type="text" id="brandInput" class="form-control" placeholder="Enter brand name"/>
+  <form id="brandForm" class="mb-3 d-flex gap-2" autocomplete="off">
+    <input type="text" id="brandInput" class="form-control" placeholder="Enter brand name" autocomplete="off"/>
     <button type="submit" class="btn btn-success">Add</button>
   </form>
 
   <input type="text" id="brandSearch" class="form-control mb-3" placeholder="Search brands...">
 
-  <div id="brandList"></div>
+  <div id="brandList" class="mb-2"></div>
   <div class="d-flex flex-wrap gap-2 mt-3" id="pagination"></div>
 </main>
 
 <script>
-/* ---- IndexedDB helpers ---- */
-const DB_NAME='StoresDB',DB_VERSION=1;let dbPromise;
+/* Robust Brands module
+   - Works with StoresDB / 'stores' object store (keyPath 'name')
+   - Reads activeStore from localStorage
+   - Ensures arrays exist and persists changes
+   - Uses SweetAlert2 for dialogs
+   - Pagination, search, edit, delete
+*/
+
+const DB_NAME = 'StoresDB';
+const DB_VERSION = 2; // keep in sync with index.html (use >= current DB version)
+let db;
+
+// ----- IndexedDB helpers -----
 function openDB(){
-  if(dbPromise) return dbPromise;
-  dbPromise=new Promise((res,rej)=>{
-    const req=indexedDB.open(DB_NAME,DB_VERSION);
-    req.onupgradeneeded=e=>{
-      const db=e.target.result;
-      if(!db.objectStoreNames.contains('stores'))
-        db.createObjectStore('stores',{keyPath:'name'});
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const _db = e.target.result;
+      if(!_db.objectStoreNames.contains('stores')){
+        _db.createObjectStore('stores', { keyPath: 'name' });
+      }
     };
-    req.onsuccess=e=>res(e.target.result);
-    req.onerror=e=>rej(e.target.error);
-  });
-  return dbPromise;
-}
-async function idbGet(store,key){
-  const db=await openDB();
-  return new Promise((res,rej)=>{
-    const tx=db.transaction(store,'readonly');
-    const req=tx.objectStore(store).get(key);
-    req.onsuccess=()=>res(req.result);
-    req.onerror=()=>rej(req.error);
-  });
-}
-async function idbPut(store,value){
-  const db=await openDB();
-  return new Promise((res,rej)=>{
-    const tx=db.transaction(store,'readwrite');
-    tx.objectStore(store).put(value);
-    tx.oncomplete=()=>res();
-    tx.onerror=()=>rej(tx.error);
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror = e => reject(e.target.error);
   });
 }
 
-/* ---- Logic ---- */
-const storeName=localStorage.getItem('activeStore');
-let currentStore={};
-const brandForm=document.getElementById('brandForm');
-const brandInput=document.getElementById('brandInput');
-const brandList=document.getElementById('brandList');
-const brandSearch=document.getElementById('brandSearch');
-const paginationDiv=document.getElementById('pagination');
-const backBtn=document.getElementById('backBtn');
+async function idbGet(store, key){
+  if(!db) await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => res(req.result || null);
+    req.onerror = () => rej(req.error);
+  });
+}
 
-backBtn.addEventListener('click',()=>window.location.href="dashboard.html");
+async function idbPut(store, value){
+  if(!db) await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put(value);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
 
-let filteredBrands=[];
-let currentPage=1;
-const pageSize=5;
-let sortDir='asc';
+// ----- UI elements -----
+const storeName = localStorage.getItem('activeStore');
+const brandForm = document.getElementById('brandForm');
+const brandInput = document.getElementById('brandInput');
+const brandSearch = document.getElementById('brandSearch');
+const brandList = document.getElementById('brandList');
+const paginationDiv = document.getElementById('pagination');
+const backBtn = document.getElementById('backBtn');
+backBtn.addEventListener('click', ()=> window.location.href = 'dashboard.html');
 
+let currentStore = null;
+let filteredBrands = [];
+let currentPage = 1;
+const pageSize = 6;
+
+// ----- Load store and initialize -----
 async function loadStore(){
-  if(!storeName){Swal.fire("Error","No active store selected","error");return;}
-  currentStore=await idbGet('stores',storeName);
-  if(!currentStore) currentStore={name:storeName,brands:[]};  // fallback
-  if(!Array.isArray(currentStore.brands)) currentStore.brands=[];
-  applyFilters();
+  try{
+    await openDB();
+    if(!storeName){
+      Swal.fire({ icon:'error', title:'No store', text:'No active store selected' });
+      return;
+    }
+    const s = await idbGet('stores', storeName);
+    if(!s){
+      // If store record missing in DB, create a minimal one so module can work.
+      currentStore = { name: storeName, description: '', products: [], components: [], brands: [], categories: [], subcategories: [], sales: [], production: [] };
+      await idbPut('stores', currentStore);
+    } else {
+      currentStore = s;
+    }
+
+    // Ensure arrays exist and are proper types
+    if(!Array.isArray(currentStore.brands)) currentStore.brands = [];
+    if(!Array.isArray(currentStore.products)) currentStore.products = [];
+    if(!Array.isArray(currentStore.categories)) currentStore.categories = [];
+    if(!Array.isArray(currentStore.subcategories)) currentStore.subcategories = [];
+    if(!Array.isArray(currentStore.sales)) currentStore.sales = [];
+
+    applyFilters();
+  }catch(err){
+    console.error('loadStore error', err);
+    Swal.fire({ icon:'error', title:'DB error', text: String(err) });
+  }
 }
 
+// ----- Filtering / Sorting / Rendering -----
 function applyFilters(){
-  const filter = brandSearch.value.trim().toLowerCase();
-  filteredBrands=currentStore.brands.filter(b =>
-    b.toLowerCase().includes(filter)
-  );
-  sortBrands();
-  currentPage=1;
+  const q = (brandSearch.value || '').trim().toLowerCase();
+  filteredBrands = (currentStore.brands || []).filter(b => (b||'').toLowerCase().includes(q));
+  filteredBrands.sort((a,b)=> a.toLowerCase() < b.toLowerCase() ? -1 : a.toLowerCase() > b.toLowerCase() ? 1 : 0);
+  currentPage = 1;
   renderBrands();
 }
 
-function sortBrands(){
-  filteredBrands.sort((a,b)=>{
-    if(a.toLowerCase()<b.toLowerCase()) return sortDir==='asc'?-1:1;
-    if(a.toLowerCase()>b.toLowerCase()) return sortDir==='asc'?1:-1;
-    return 0;
-  });
-}
-
 function renderBrands(){
-  brandList.innerHTML="";
-  if(filteredBrands.length===0){
-    brandList.innerHTML="<p class='text-muted'>No brands found.</p>";
-    paginationDiv.innerHTML="";
+  brandList.innerHTML = '';
+  if(!filteredBrands || filteredBrands.length === 0){
+    brandList.innerHTML = '<p class="muted">No brands found.</p>';
+    paginationDiv.innerHTML = '';
     return;
   }
 
-  const start=(currentPage-1)*pageSize;
-  const pageBrands=filteredBrands.slice(start,start+pageSize);
+  const start = (currentPage - 1) * pageSize;
+  const pageBrands = filteredBrands.slice(start, start + pageSize);
 
-  pageBrands.forEach((b,i)=>{
-    const card=document.createElement("div");
-    card.className="card mb-2 p-3 d-flex flex-row justify-content-between align-items-center";
-    card.innerHTML=`
-      <span class="fw-bold">${b}</span>
+  pageBrands.forEach(name => {
+    const idx = currentStore.brands.indexOf(name);
+    const card = document.createElement('div');
+    card.className = 'card mb-2 p-3 d-flex flex-row justify-content-between align-items-center';
+    card.innerHTML = `
+      <div class="fw-bold">${escapeHtml(name)}</div>
       <div>
-        <button class="btn btn-warning btn-sm me-1">Edit</button>
-        <button class="btn btn-danger btn-sm">Delete</button>
+        <button class="btn btn-warning btn-sm me-1" data-action="edit">Edit</button>
+        <button class="btn btn-danger btn-sm" data-action="delete">Delete</button>
       </div>
     `;
-    card.querySelector(".btn-warning").addEventListener("click",()=>editBrand(currentStore.brands.indexOf(b)));
-    card.querySelector(".btn-danger").addEventListener("click",()=>deleteBrand(currentStore.brands.indexOf(b)));
+    card.querySelector('[data-action="edit"]').addEventListener('click', ()=> editBrand(idx) );
+    card.querySelector('[data-action="delete"]').addEventListener('click', ()=> deleteBrand(idx) );
     brandList.appendChild(card);
   });
 
@@ -156,90 +182,105 @@ function renderBrands(){
 }
 
 function renderPagination(){
-  paginationDiv.innerHTML="";
-  const totalPages=Math.ceil(filteredBrands.length/pageSize);
+  paginationDiv.innerHTML = '';
+  const totalPages = Math.max(1, Math.ceil(filteredBrands.length / pageSize));
   for(let i=1;i<=totalPages;i++){
-    const btn=document.createElement("button");
-    btn.textContent=i;
-    btn.className="btn btn-sm "+(i===currentPage?"btn-success":"btn-primary");
-    btn.addEventListener("click",()=>{currentPage=i;renderBrands();});
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-sm ' + (i === currentPage ? 'btn-success' : 'btn-primary');
+    btn.textContent = i;
+    btn.addEventListener('click', ()=> { currentPage = i; renderBrands(); });
     paginationDiv.appendChild(btn);
   }
 }
 
-/* ---- Event Listeners ---- */
-brandSearch.addEventListener("input",applyFilters);
+// ----- Helpers -----
+function escapeHtml(str){
+  if(!str) return '';
+  return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
 
-brandForm.addEventListener("submit",async e=>{
+function normalizeName(n){ return (n||'').trim(); }
+function existsBrandCaseInsensitive(name, exceptIndex = -1){
+  const n = name.toLowerCase();
+  return currentStore.brands.some((b,i)=> i!==exceptIndex && (b||'').toLowerCase() === n);
+}
+
+// ----- Events -----
+brandSearch.addEventListener('input', ()=> { currentPage = 1; applyFilters(); });
+
+brandForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const name = brandInput.value.trim();
-  if(!name) return;
-
-  if(!Array.isArray(currentStore.brands)) currentStore.brands=[];
-  const exists=currentStore.brands.some(b=>b.toLowerCase()===name.toLowerCase());
-  if(exists){
-    Swal.fire("Warning","Brand already exists!","warning");
-    return;
+  try{
+    const name = normalizeName(brandInput.value);
+    if(!name) return;
+    if(!Array.isArray(currentStore.brands)) currentStore.brands = [];
+    if(existsBrandCaseInsensitive(name)){
+      await Swal.fire({ icon:'warning', title:'Duplicate', text:'Brand already exists' });
+      return;
+    }
+    currentStore.brands.push(name);
+    await idbPut('stores', currentStore);
+    brandInput.value = '';
+    await Swal.fire({ icon:'success', title:'Added', timer:900, showConfirmButton:false });
+    applyFilters();
+  }catch(err){
+    console.error('add brand error', err);
+    Swal.fire({ icon:'error', title:'Error', text: String(err) });
   }
-
-  currentStore.brands.push(name);
-  await idbPut('stores',currentStore);
-  brandInput.value="";
-  Swal.fire("Success","Brand added!","success");
-  applyFilters();
 });
 
+// ----- Edit / Delete -----
 async function editBrand(index){
-  const current=currentStore.brands[index];
-  const { value:newName } = await Swal.fire({
-    title:"Edit brand",
-    input:"text",
-    inputValue:current,
-    showCancelButton:true,
-    confirmButtonText:"Save",
-    inputValidator: v => !v && "Brand name required"
+  if(index < 0 || index >= currentStore.brands.length) return;
+  const current = currentStore.brands[index];
+  const result = await Swal.fire({
+    title: 'Edit brand',
+    input: 'text',
+    inputValue: current,
+    showCancelButton: true,
+    confirmButtonText: 'Save',
+    inputValidator: v => (!v || !v.trim()) ? 'Brand name required' : null
   });
+  if(!result || result.isDismissed) return;
+  const newNameRaw = result.value;
+  const newName = normalizeName(newNameRaw);
   if(!newName) return;
-
-  const exists=currentStore.brands.some((b,i)=>i!==index && b.toLowerCase()===newName.toLowerCase());
-  if(exists){
-    Swal.fire("Error","Another brand with this name exists!","error");
+  if(existsBrandCaseInsensitive(newName, index)){
+    await Swal.fire({ icon:'error', title:'Duplicate', text:'Another brand with this name exists' });
     return;
   }
-
-  currentStore.brands[index]=newName.trim();
-  await idbPut('stores',currentStore);
-  Swal.fire("Saved","Brand updated!","success");
+  currentStore.brands[index] = newName;
+  await idbPut('stores', currentStore);
+  await Swal.fire({ icon:'success', title:'Saved', timer:700, showConfirmButton:false });
   applyFilters();
 }
 
 async function deleteBrand(index){
-  const res=await Swal.fire({
-    title:"Delete brand?",
-    text:"This action cannot be undone.",
-    icon:"warning",
-    showCancelButton:true,
-    confirmButtonColor:"#d33",
-    confirmButtonText:"Yes, delete it!"
+  if(index < 0 || index >= currentStore.brands.length) return;
+  const name = currentStore.brands[index];
+  const res = await Swal.fire({
+    title: 'Delete brand?',
+    html: `Delete <strong>${escapeHtml(name)}</strong>? This cannot be undone.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Yes, delete',
+    confirmButtonColor: '#d33'
   });
-  if(!res.isConfirmed) return;
-
-  currentStore.brands.splice(index,1);
-  await idbPut('stores',currentStore);
-  Swal.fire("Deleted","Brand removed","success");
+  if(!res || !res.isConfirmed) return;
+  currentStore.brands.splice(index, 1);
+  await idbPut('stores', currentStore);
+  await Swal.fire({ icon:'success', title:'Deleted', timer:700, showConfirmButton:false });
   applyFilters();
 }
 
-/* ---- Init ---- */
+// ----- Init -----
 loadStore();
 </script>
 
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => console.log('SW registered', reg))
-      .catch(err => console.log('SW registration failed', err));
+    navigator.serviceWorker.register('sw.js').catch(()=>{/*sw may fail in some contexts*/});
   });
 }
 </script>
