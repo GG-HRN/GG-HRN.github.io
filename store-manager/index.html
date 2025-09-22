@@ -21,8 +21,11 @@
 <link rel="icon" href="icons/favicon-32x32.png" sizes="32x32">
 <link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
 
+<!-- Framework7 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/framework7@8/framework7-bundle.min.css" />
+
 <style>
-body{margin:0;font-family:system-ui,Arial;background:#0f1724;color:#fff;display:flex;flex-direction:column;align-items:center;padding:20px}
+body{margin:0;background:#0f1724;color:#fff;display:flex;flex-direction:column;align-items:center;padding:20px;font-family:-apple-system,system-ui,Arial,sans-serif}
 h1{text-align:center;margin-bottom:20px}
 #cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;width:100%;max-width:800px;margin-bottom:20px}
 .card{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;background:#1e293b;padding:15px;border-radius:12px;cursor:pointer;transition:0.2s}
@@ -32,7 +35,7 @@ h1{text-align:center;margin-bottom:20px}
 
 .new-row{
   display:flex;
-  flex-direction:column; /* stack on mobile */
+  flex-direction:column;
   width:100%;
   max-width:400px;
   gap:8px;
@@ -58,13 +61,8 @@ h1{text-align:center;margin-bottom:20px}
   cursor:pointer;
 }
 @media(min-width:600px){
-  .new-row{
-    flex-direction:row; /* row layout on desktop */
-  }
-  .new-row button{
-    width:auto;
-    margin-top:0;
-  }
+  .new-row{flex-direction:row}
+  .new-row button{width:auto;margin-top:0}
 }
 </style>
 </head>
@@ -79,10 +77,13 @@ h1{text-align:center;margin-bottom:20px}
   <button id="createBtn">Create</button>
 </div>
 
+<!-- Framework7 JS -->
+<script src="https://cdn.jsdelivr.net/npm/framework7@8/framework7-bundle.min.js"></script>
+
 <script>
 /* --- IndexedDB helper --- */
 const DB_NAME = 'StoresDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // bump version when schema changes
 let dbPromise;
 
 function openDB(){
@@ -91,7 +92,8 @@ function openDB(){
     const req=indexedDB.open(DB_NAME,DB_VERSION);
     req.onupgradeneeded=e=>{
       const db=e.target.result;
-      if(!db.objectStoreNames.contains('stores')) db.createObjectStore('stores',{keyPath:'name'});
+      if(!db.objectStoreNames.contains('stores')) 
+        db.createObjectStore('stores',{keyPath:'name'});
     };
     req.onsuccess=e=>resolve(e.target.result);
     req.onerror=e=>reject(e.target.error);
@@ -153,12 +155,12 @@ async function loadCards(){
 async function createStore(){
   const name = nameInput.value.trim();
   const desc = descInput.value.trim();
-  if(!name) return alert('Enter a store name');
+  if(!name) return app.dialog.alert('Enter a store name');
 
   // Check if store already exists
   const existing = await idbGet('stores', name);
   if(existing){
-    alert('Store already exists');
+    app.dialog.alert('Store already exists');
     return;
   }
 
@@ -168,11 +170,12 @@ async function createStore(){
     description: desc,
     products: [],
     components: [],
-    sales: [],
-    production: [],
-    categories: [],     // categories table
-    subcategories: [],  // subcategories table
-    brands: []          // brands table
+    categories: [],
+    subcategories: [],
+    brands: [],
+    sales: [],         // all sales records
+    salesSummary: [],  // for daily/weekly/monthly aggregation
+    customers: []      // optional: customer info for linking sales
   };
 
   // Save to IndexedDB
@@ -191,6 +194,9 @@ function openStore(name){
   localStorage.setItem('activeStore', name);
   window.location.href = 'dashboard.html';
 }
+
+/* --- Framework7 instance for alerts etc. --- */
+const app = new Framework7();
 
 /* --- Service Worker --- */
 if('serviceWorker' in navigator){
