@@ -14,10 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="Store Manager">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
-<!-- theme color -->
 <meta name="theme-color" content="#1e293b">
-
-<!-- favicons -->
 <link rel="icon" href="icons/favicon-32x32.png" sizes="32x32">
 <link rel="icon" href="icons/favicon-16x16.png" sizes="16x16">
 
@@ -25,41 +22,106 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/framework7@8/framework7-bundle.min.css" />
 
 <style>
-body{margin:0;background:#0f1724;color:#fff;display:flex;flex-direction:column;align-items:center;padding:20px;font-family:-apple-system,system-ui,Arial,sans-serif}
-h1{text-align:center;margin-bottom:20px}
-#cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;width:100%;max-width:800px;margin-bottom:20px}
-.card{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;background:#1e293b;padding:15px;border-radius:12px;cursor:pointer;transition:0.2s}
-.card:hover{background:#374151}
-.card h2{margin:0;font-size:16px;word-break:break-word;text-align:center}
-.card p{font-size:12px;color:#cbd5e1;text-align:center}
+body {
+  margin:0;
+  background:#0f1724;
+  color:#fff;
+  font-family:-apple-system,system-ui,Arial,sans-serif;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:16px;
+}
 
-.new-row{
+h1 {
+  text-align:center;
+  margin-bottom:24px;
+  font-size:1.8rem;
+  color:#f8fafc;
+}
+
+#cards {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:16px;
+  width:100%;
+  max-width:900px;
+  margin-bottom:24px;
+}
+
+.card {
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  background:#1e293b;
+  padding:18px;
+  border-radius:16px;
+  cursor:pointer;
+  transition:0.25s;
+  box-shadow:0 4px 6px rgba(0,0,0,0.2);
+}
+
+.card:hover {
+  background:#374151;
+  transform:translateY(-2px);
+  box-shadow:0 6px 10px rgba(0,0,0,0.3);
+}
+
+.card h2 {
+  margin:0;
+  font-size:16px;
+  text-align:center;
+  word-break:break-word;
+}
+
+.card p {
+  font-size:13px;
+  color:#cbd5e1;
+  text-align:center;
+}
+
+.new-row {
   display:flex;
   flex-direction:column;
   width:100%;
-  max-width:400px;
-  gap:8px;
-  margin-bottom:20px;
+  max-width:420px;
+  gap:10px;
+  margin-bottom:16px;
 }
-.new-row input{
-  padding:10px;
-  border-radius:8px;
-  border:0;
+
+.new-row input {
+  padding:12px;
+  border-radius:10px;
+  border:none;
   font-size:16px;
   width:100%;
+  background:#1e293b;
+  color:#fff;
 }
-.new-row button{
-  padding:10px;
-  border-radius:8px;
-  border:0;
+
+.new-row input::placeholder {
+  color:#94a3b8;
+}
+
+.new-row button {
+  padding:12px;
+  border-radius:10px;
+  border:none;
   background:#6366f1;
   color:#fff;
   font-weight:700;
   font-size:16px;
   width:100%;
-  margin-top:4px;
   cursor:pointer;
+  transition:0.2s;
 }
+
+.new-row button:hover {
+  background:#4f46e5;
+}
+
 @media(min-width:600px){
   .new-row{flex-direction:row}
   .new-row button{width:auto;margin-top:0}
@@ -67,6 +129,7 @@ h1{text-align:center;margin-bottom:20px}
 </style>
 </head>
 <body>
+
 <h1>🏬 My Stores</h1>
 
 <div id="cards"></div>
@@ -81,9 +144,8 @@ h1{text-align:center;margin-bottom:20px}
 <script src="https://cdn.jsdelivr.net/npm/framework7@8/framework7-bundle.min.js"></script>
 
 <script>
-/* --- IndexedDB helper --- */
 const DB_NAME = 'StoresDB';
-const DB_VERSION = 2; // bump version when schema changes
+const DB_VERSION = 2;
 let dbPromise;
 
 function openDB(){
@@ -131,7 +193,8 @@ async function idbPut(store,value){
   });
 }
 
-/* --- UI logic --- */
+const app = new Framework7();
+
 const cardsDiv = document.getElementById('cards');
 const nameInput = document.getElementById('storeName');
 const descInput = document.getElementById('storeDesc');
@@ -157,14 +220,12 @@ async function createStore(){
   const desc = descInput.value.trim();
   if(!name) return app.dialog.alert('Enter a store name');
 
-  // Check if store already exists
   const existing = await idbGet('stores', name);
   if(existing){
     app.dialog.alert('Store already exists');
     return;
   }
 
-  // Initialize empty tables for the new store
   const storeData = {
     name,
     description: desc,
@@ -173,40 +234,29 @@ async function createStore(){
     categories: [],
     subcategories: [],
     brands: [],
-    sales: [],         // all sales records
-    salesSummary: [],  // for daily/weekly/monthly aggregation
-    customers: []      // optional: customer info for linking sales
+    sales: [],
+    salesSummary: [],
+    customers: []
   };
 
-  // Save to IndexedDB
   await idbPut('stores', storeData);
 
-  // Clear inputs
   nameInput.value = '';
   descInput.value = '';
-
-  // Reload cards
   loadCards();
 }
 
-// Open dashboard when a store is clicked
 function openStore(name){
   localStorage.setItem('activeStore', name);
   window.location.href = 'dashboard.html';
 }
 
-/* --- Framework7 instance for alerts etc. --- */
-const app = new Framework7();
-
-/* --- Service Worker --- */
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js',{scope:'./'})
-    .then(()=>console.log('SW registered'))
-    .catch(e=>console.warn('SW failed',e));
+  navigator.serviceWorker.register('sw.js',{scope:'./'}).then(()=>console.log('SW registered')).catch(e=>console.warn('SW failed',e));
 }
 
-/* --- Init --- */
 loadCards();
 </script>
+
 </body>
 </html>
