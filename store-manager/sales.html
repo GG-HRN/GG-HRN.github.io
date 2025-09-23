@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>New Sale</title>
+
+<!-- PWA basics -->
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f1724">
+
+<style>
+  body{margin:0;font-family:-apple-system,system-ui,sans-serif;background:#0f1724;color:#fff}
+  header{padding:14px 16px;background:#1e293b;text-align:center;font-weight:700;position:sticky;top:0;z-index:10}
+  main{padding:16px;max-width:700px;margin:auto}
+
+  .step{display:none}
+  .step.active{display:block}
+
+  h3{margin:10px 0 16px}
+  input,select,button{
+    padding:12px;border:none;border-radius:10px;font-size:15px;
+  }
+  input,select{width:100%;background:#1e293b;color:#fff;margin-bottom:12px}
+  input::placeholder{color:#94a3b8}
+  button{background:#6366f1;color:#fff;font-weight:700;cursor:pointer}
+  button:disabled{opacity:0.5;cursor:not-allowed}
+  .btn-secondary{background:#334155}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+  .card{background:#1e293b;border-radius:12px;padding:12px;cursor:pointer;text-align:center}
+  .card:hover{background:#374151}
+  .cart{margin-top:16px;background:#1e293b;padding:12px;border-radius:10px}
+  .cart-item{display:flex;justify-content:space-between;margin:6px 0}
+
+  #pagination{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+</style>
+</head>
+<body>
+<header>🧾 New Sale</header>
+<main>
+
+  <!-- Step 1: Customer -->
+  <div class="step active" id="step1">
+    <h3>Select Customer</h3>
+    <select id="customerSelect"></select>
+    <input id="newCustomerName" placeholder="New customer name"/>
+    <button id="addCustomerBtn">Add Customer</button>
+    <button id="toStep2">Next →</button>
+  </div>
+
+  <!-- Step 2: Products -->
+  <div class="step" id="step2">
+    <h3>Select Products</h3>
+    <input id="searchProduct" placeholder="🔎 Search product..."/>
+    <div id="productsGrid" class="grid"></div>
+
+    <div id="pagination">
+      <button class="btn-secondary" id="prevPage">← Prev</button>
+      <span id="pageInfo"></span>
+      <button class="btn-secondary" id="nextPage">Next →</button>
+    </div>
+
+    <div class="cart" id="cartBox">
+      <h4>🛒 Cart</h4>
+      <div id="cartItems"></div>
+      <div id="cartTotal" style="margin-top:8px;font-weight:700"></div>
+    </div>
+
+    <button id="toStep3">Next →</button>
+  </div>
+
+  <!-- Step 3: Payment -->
+  <div class="step" id="step3">
+    <h3>Payment</h3>
+    <div id="finalTotal" style="margin:12px 0;font-size:18px;font-weight:700"></div>
+    <input id="received" type="number" placeholder="Received amount"/>
+    <div id="changeBox" style="margin:12px 0"></div>
+    <button id="confirmSale">Confirm Sale</button>
+  </div>
+
+</main>
+
+<script>
+/* ---- IndexedDB helpers ---- */
+const DB_NAME='StoresDB',DB_VERSION=2;let dbPromise;
+function openDB(){
+  if(dbPromise) return dbPromise;
+  dbPromise=new Promise((res,rej)=>{
+    const req=indexedDB.open(DB_NAME,DB_VERSION);
+    req.onsuccess=e=>res(e.target.result);
+    req.onerror=e=>rej(e.target.error);
+  });
+  return dbPromise;
+}
+async function idbGet(store,key){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readonly');
+    const req=tx.objectStore(store).get(key);
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+async function idbPut(store,val){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readwrite');
+    const req=tx.objectStore(store).put(val);
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+/* ---- Wizard ---- */
+let currentStep=1;
+function showStep(n){
+  document.querySelectorAll(".step").forEach((s,i)=>s.classList.toggle("active",i===n-1));
+  currentStep=n;
+}
+
+/* ---- Data ---- */
+const storeName=localStorage.getItem("activeStore");
+let storeData,cart=[],page=1,pageSize=6,searchTerm="";
+
+/* ---- Step 1: Customers ---- */
+const customerSelect=document.getElementById("customerSelect");
+const newCustomerName=document.getElementById("newCustomerName");
+document.getElementById("addCustomerBtn").onclick=()=>{
+  const name=newCustomerName.value.trim();
+  if(!name) return alert("Enter name");
+  if(!storeData.customers.find(c=>c.name===name)){
+    storeData.customers.push({name});
+    idbPut("stores",storeData);
+    loadCustomers();
+  }
+  newCustomerName.value="";
+};
+function loadCustomers(){
+  customerSelect.innerHTML="<option value='anonymous'>Anonymous</option>"+
+    storeData.customers.map(c=>`<option>${c.name}</option>`).join("");
+}
+document.getElementById("toStep2").onclick=()=>showStep(2);
+
+/* ---- Step 2: Products ---- */
+const productsGrid=document.getElementById("productsGrid");
+const searchInput=document.getElementById("searchProduct");
+const prevPage=document.getElementById("prevPage");
+const nextPage=document.getElementById("nextPage");
+const pageInfo=document.getElementById("pageInfo");
+
+searchInput.oninput=()=>{searchTerm=searchInput.value.toLowerCase();page=1;renderProducts();};
+prevPage.onclick=()=>{if(page>1){page--;renderProducts();}};
+nextPage.onclick=()=>{page++;renderProducts();};
+
+function renderProducts(){
+  let products=storeData.products||[];
+  if(searchTerm) products=products.filter(p=>p.name.toLowerCase().includes(searchTerm));
+  const totalPages=Math.max(1,Math.ceil(products.length/pageSize));
+  if(page>totalPages) page=totalPages;
+  const start=(page-1)*pageSize;
+  const items=products.slice(start,start+pageSize);
+
+  productsGrid.innerHTML=items.map(p=>`
+    <div class="card" onclick="addToCart('${p.name}')">
+      <div>${p.name}</div>
+      <div style="font-size:13px;color:#94a3b8">$${p.price||0}</div>
+    </div>
+  `).join("");
+
+  pageInfo.textContent=`Page ${page} / ${totalPages}`;
+  prevPage.disabled=page===1;
+  nextPage.disabled=page===totalPages;
+}
+function addToCart(name){
+  const product=storeData.products.find(p=>p.name===name);
+  if(!product) return;
+  const item=cart.find(c=>c.name===name);
+  if(item) item.qty++;
+  else cart.push({name,price:product.price||0,qty:1});
+  renderCart();
+}
+function renderCart(){
+  const cartItems=document.getElementById("cartItems");
+  const cartTotal=document.getElementById("cartTotal");
+  cartItems.innerHTML=cart.map(c=>`
+    <div class="cart-item">
+      <span>${c.name} x${c.qty}</span>
+      <span>$${(c.price*c.qty).toFixed(2)}</span>
+    </div>`).join("");
+  const total=cart.reduce((sum,c)=>sum+c.price*c.qty,0);
+  cartTotal.textContent="Total: $"+total.toFixed(2);
+}
+document.getElementById("toStep3").onclick=()=>{
+  renderCart();
+  document.getElementById("finalTotal").textContent=
+    "Final Total: $"+cart.reduce((s,c)=>s+c.price*c.qty,0).toFixed(2);
+  showStep(3);
+};
+
+/* ---- Step 3: Payment ---- */
+const received=document.getElementById("received");
+const changeBox=document.getElementById("changeBox");
+received.oninput=()=>{
+  const total=cart.reduce((s,c)=>s+c.price*c.qty,0);
+  const rcv=parseFloat(received.value||0);
+  if(rcv>=total){
+    changeBox.textContent="Change: $"+(rcv-total).toFixed(2);
+  }else changeBox.textContent="";
+};
+document.getElementById("confirmSale").onclick=async()=>{
+  const total=cart.reduce((s,c)=>s+c.price*c.qty,0);
+  const rcv=parseFloat(received.value||0);
+  if(rcv<total) return alert("Not enough money");
+
+  const customer=customerSelect.value;
+  storeData.sales.push({
+    customer,
+    items:cart,
+    total,
+    date:new Date().toISOString()
+  });
+  await idbPut("stores",storeData);
+  alert("Sale confirmed!");
+  window.location.href="dashboard.html";
+};
+
+/* ---- Init ---- */
+(async()=>{
+  storeData=await idbGet("stores",storeName);
+  if(!storeData){alert("Store not found");return;}
+  if(!storeData.customers) storeData.customers=[];
+  loadCustomers();
+  renderProducts();
+})();
+</script>
+</body>
+</html>
