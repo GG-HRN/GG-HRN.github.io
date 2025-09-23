@@ -77,6 +77,10 @@
     <h3 style="margin-top:20px">📊 Sales Summary</h3>
     <canvas id="salesChart" style="max-width:100%;background:#1e293b;padding:12px;border-radius:8px"></canvas>
     <div id="salesEmpty" style="margin-top:10px;color:#94a3b8"></div>
+
+    <h3 style="margin-top:30px">📦 Products Stock</h3>
+    <canvas id="stockChart" style="max-width:100%;background:#1e293b;padding:12px;border-radius:8px"></canvas>
+    <div id="stockEmpty" style="margin-top:10px;color:#94a3b8"></div>
   </main>
 
 <!-- Chart.js -->
@@ -174,6 +178,7 @@ async function loadDashboard(){
     : `<div class="advice">All good! No issues detected.</div>`;
 
   renderSalesChart(store.sales || []);
+  renderStockChart(store.products || []);
 }
 
 function renderSalesChart(sales){
@@ -186,11 +191,10 @@ function renderSalesChart(sales){
     return;
   }
 
-  // Aggregate sales by date (only days with sales)
   const dailyTotals = {};
   sales.forEach(s=>{
     const dateObj = new Date(s.date || Date.now());
-    const date = dateObj.toISOString().slice(0,10); // YYYY-MM-DD
+    const date = dateObj.toISOString().slice(0,10);
     dailyTotals[date] = (dailyTotals[date]||0) + (s.total || 0);
   });
 
@@ -213,13 +217,39 @@ function renderSalesChart(sales){
     },
     options: {
       responsive: true,
-      plugins:{
-        legend:{labels:{color:'#fff'}}
-      },
-      scales:{
-        x:{ticks:{color:'#fff'}},
-        y:{ticks:{color:'#fff'}}
-      }
+      plugins:{ legend:{labels:{color:'#fff'}} },
+      scales:{ x:{ticks:{color:'#fff'}}, y:{ticks:{color:'#fff'}} }
+    }
+  });
+}
+
+function renderStockChart(products){
+  const stockChart = document.getElementById('stockChart');
+  const stockEmpty = document.getElementById('stockEmpty');
+
+  if(!products || products.length===0){
+    stockChart.style.display='none';
+    stockEmpty.textContent='No stock info available.';
+    return;
+  }
+
+  const labels = products.map(p=>p.name || "Unnamed");
+  const values = products.map(p=>p.stock || 0);
+
+  new Chart(stockChart, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Stock',
+        data: values,
+        backgroundColor: '#22c55e'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins:{ legend:{labels:{color:'#fff'}} },
+      scales:{ x:{ticks:{color:'#fff'}}, y:{ticks:{color:'#fff'}} }
     }
   });
 }
@@ -234,7 +264,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Example: send JSON data to SW to cache dynamically
 function cacheJSON(url, data){
   if(navigator.serviceWorker.controller){
     navigator.serviceWorker.controller.postMessage({
