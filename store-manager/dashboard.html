@@ -88,7 +88,7 @@
 
 <script>
 /* ---- IndexedDB helpers ---- */
-const DB_NAME='StoresDB',DB_VERSION=1;let dbPromise;
+const DB_NAME='StoresDB',DB_VERSION=2;let dbPromise;
 function openDB(){
   if(dbPromise) return dbPromise;
   dbPromise=new Promise((res,rej)=>{
