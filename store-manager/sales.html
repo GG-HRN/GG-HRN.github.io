@@ -211,6 +211,21 @@ received.oninput=()=>{
 };
 document.getElementById("confirmSale").onclick=async()=>{
   const total=cart.reduce((s,c)=>s+c.price*c.qty,0);
+  cart.forEach(ci => {
+  const prodIndex = storeData.products.findIndex(p => p.id === ci.id);
+  if (prodIndex !== -1) {
+    const prod = storeData.products[prodIndex];
+    const newQty = (prod.stock || 0) - ci.qty;
+
+    if (newQty <= 0) {
+      // remove the product completely
+      storeData.products.splice(prodIndex, 1);
+    } else {
+      // update stock
+      prod.stock = newQty;
+    }
+  }
+});
   const rcv=parseFloat(received.value||0);
   if(rcv<total) return alert("Not enough money");
 
